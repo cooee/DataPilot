@@ -370,6 +370,74 @@ var knownFreeGIDs = map[int]bool{
 make sync-ods ARGS="-gid=987654321 -type=free -from=2026-05-01 -to=2026-05-19"
 ```
 
+### 场景 F：某一天付费与免费产品数据对比
+
+**方式一：按类型汇总对比（最常用）**
+
+```bash
+docker exec clickhouse-server clickhouse-client --password 123456 -q "
+SELECT
+    product_type,
+    count()                                    AS product_cnt,
+    sum(dau)                                   AS dau_total,
+    round(sum(recharge_total_amt), 0)          AS recharge_total,
+    round(avg(retention_d7_ratio), 4)          AS avg_retention_d7,
+    round(sum(recharge_total_amt)/sum(dau), 2) AS arpu,
+    round(avg(arppu), 2)                       AS avg_arppu,
+    sum(new_user_total_cnt)                    AS new_user_total,
+    sum(new_paying_user_cnt)                   AS new_paying_cnt
+FROM dws_product_daily
+WHERE date = '2026-05-18'
+GROUP BY product_type
+FORMAT PrettyCompact"
+```
+
+**方式二：每个产品明细并排**
+
+```bash
+docker exec clickhouse-server clickhouse-client --password 123456 -q "
+SELECT
+    product_type, product_code, product_name, team,
+    dau,
+    round(recharge_total_amt, 0)  AS recharge,
+    round(retention_d7_ratio, 4)  AS retention_d7,
+    round(arppu, 2)               AS arppu
+FROM dws_product_daily
+WHERE date = '2026-05-18'
+ORDER BY product_type, recharge DESC
+FORMAT PrettyCompact"
+```
+
+**方式三：指定任意一天（Shell 变量）**
+
+```bash
+DATE=2026-05-01
+
+docker exec clickhouse-server clickhouse-client --password 123456 -q "
+SELECT product_type, count() AS products, sum(dau) AS dau,
+       round(sum(recharge_total_amt), 0) AS recharge,
+       round(avg(retention_d7_ratio), 4) AS retention_d7
+FROM dws_product_daily
+WHERE date = '$DATE'
+GROUP BY product_type
+FORMAT PrettyCompact"
+```
+
+**方式四：多天趋势对比（paid vs free 走势）**
+
+```bash
+docker exec clickhouse-server clickhouse-client --password 123456 -q "
+SELECT date, product_type,
+       sum(dau)                          AS dau,
+       round(sum(recharge_total_amt), 0) AS recharge,
+       round(avg(retention_d7_ratio), 4) AS retention_d7
+FROM dws_product_daily
+WHERE date BETWEEN '2026-05-12' AND '2026-05-18'
+GROUP BY date, product_type
+ORDER BY date, product_type
+FORMAT PrettyCompact"
+```
+
 ---
 
 > 文档对应代码版本：`main` 分支，2026-05-19  
