@@ -83,14 +83,16 @@ func buildQuery(req *dto.QueryRequest) (builtQuery, []dto.ColumnMeta, error) {
 		args = append(args, filterArgs...)
 	}
 
+	grouped := needsGroupBy(req, ds)
+
 	sql := "SELECT " + strings.Join(selectCols, ", ") + " FROM " + ds.Table
 	if len(whereParts) > 0 {
 		sql += " WHERE " + strings.Join(whereParts, " AND ")
 	}
-	if len(req.Dimensions) > 0 {
+	if grouped {
 		sql += " GROUP BY " + strings.Join(req.Dimensions, ", ")
 	}
-	if orderSQL := buildOrderBy(req.OrderBy, ds, len(req.Dimensions) > 0); orderSQL != "" {
+	if orderSQL := buildOrderBy(req.OrderBy, ds, grouped); orderSQL != "" {
 		sql += " ORDER BY " + orderSQL
 	}
 	sql += fmt.Sprintf(" LIMIT %d", limit)
@@ -116,15 +118,20 @@ func buildSelectCols(req *dto.QueryRequest, ds catalog.DatasetDef) ([]string, []
 		})
 	}
 
-	grouped := len(req.Dimensions) > 0
+	grouped := needsGroupBy(req, ds)
 	for _, m := range req.Metrics {
 		if !identRe.MatchString(m) {
 			return nil, nil, fmt.Errorf("非法字段名: %s", m)
 		}
 		def := ds.Metrics[m]
 		expr := m
-		if grouped && def.AggFunc != catalog.AggNone {
-			expr = fmt.Sprintf("%s(%s) AS %s", def.AggFunc, m, m)
+		if grouped {
+			switch def.AggFunc {
+			case catalog.AggNone:
+				expr = fmt.Sprintf("any(%s) AS %s", m, m)
+			default:
+				expr = fmt.Sprintf("%s(%s) AS %s", def.AggFunc, m, m)
+			}
 		}
 		cols = append(cols, expr)
 		meta = append(meta, dto.ColumnMeta{
@@ -205,13 +212,32 @@ func buildOrderBy(orders []dto.OrderBy, ds catalog.DatasetDef, grouped bool) str
 		}
 		field := o.Field
 		if grouped {
-			if def, ok := ds.Metrics[o.Field]; ok && def.AggFunc != catalog.AggNone {
-				field = fmt.Sprintf("%s(%s)", def.AggFunc, o.Field)
+			if def, ok := ds.Metrics[o.Field]; ok {
+				switch def.AggFunc {
+				case catalog.AggNone:
+					field = fmt.Sprintf("any(%s)", o.Field)
+				default:
+					field = fmt.Sprintf("%s(%s)", def.AggFunc, o.Field)
+				}
 			}
 		}
 		parts = append(parts, field+" "+dir)
 	}
 	return strings.Join(parts, ", ")
+}
+
+// needsGroupBy 仅当存在维度且至少一个指标需要聚合时为 true。
+// ADS 预聚合视图（指标均为 AggNone）按行查询，不加 GROUP BY。
+func needsGroupBy(req *dto.QueryRequest, ds catalog.DatasetDef) bool {
+	if len(req.Dimensions) == 0 {
+		return false
+	}
+	for _, m := range req.Metrics {
+		if def, ok := ds.Metrics[m]; ok && def.AggFunc != catalog.AggNone {
+			return true
+		}
+	}
+	return false
 }
 
 func validateFields[T any](fields []string, allowed map[string]T) error {

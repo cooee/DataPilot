@@ -68,16 +68,19 @@ func TestBuildQuery_RejectUnknownMetric(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestBuildQuery_ADSView(t *testing.T) {
+func TestBuildQuery_ADSView_NoGroupByWhenPreAggregated(t *testing.T) {
 	req := &dto.QueryRequest{
 		Dataset: "ads_product_health_overview",
 		Metrics: []string{"health_score", "avg_dau_30d"},
-		Dimensions: []string{"team"},
+		Dimensions: []string{"product_code", "product_name", "team"},
+		OrderBy: []dto.OrderBy{{Field: "health_score", Desc: true}},
 		Limit: 10,
 	}
 	built, _, err := buildQuery(req)
 	require.NoError(t, err)
 	assert.Contains(t, built.SQL, "FROM ads_product_health_overview")
 	assert.Contains(t, built.SQL, "health_score")
+	assert.NotContains(t, built.SQL, "GROUP BY")
 	assert.NotContains(t, built.SQL, "sum(health_score)")
+	assert.Contains(t, built.SQL, "ORDER BY health_score DESC")
 }
