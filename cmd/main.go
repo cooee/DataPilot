@@ -62,6 +62,12 @@ func main() {
 		case "--test:gsheet":
 			runTestGSheet(injector)
 			return
+		case "--ch:migrate":
+			runCHMigrate(injector)
+			return
+		case "--sync:ods", "--sync:dim", "--sync:dwd", "--sync:dws", "--sync:ads", "--sync:all":
+			runSyncGSheet(injector, arg)
+			return
 		}
 	}
 

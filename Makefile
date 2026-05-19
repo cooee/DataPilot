@@ -84,6 +84,29 @@ test-gsheet-public:
 		go run ./cmd --test:gsheet:public $(url); \
 	fi
 
+# ClickHouse migrations（建表/视图）
+ch-migrate:
+	go run ./cmd --ch:migrate
+
+# GSheet 同步命令（可追加 ARGS="-id=xxx -from=YYYY-MM-DD -to=YYYY-MM-DD" 等参数）
+sync-ods:
+	go run ./cmd --sync:ods $(ARGS)
+
+sync-dim:
+	go run ./cmd --sync:dim $(ARGS)
+
+sync-dwd:
+	go run ./cmd --sync:dwd $(ARGS)
+
+sync-dws:
+	go run ./cmd --sync:dws $(ARGS)
+
+sync-ads:
+	go run ./cmd --sync:ads
+
+sync-all:
+	go run ./cmd --sync:all $(ARGS)
+
 migrate-seed: 
 	go run cmd/main.go --migrate:run --seed
 
