@@ -205,7 +205,7 @@ FORMAT PrettyCompact"
 ```bash
 docker exec clickhouse-server clickhouse-client --password 123456 -q "
 SELECT date, team, dau_sum, recharge_total_amt_sum,
-       round(retention_d7_ratio_num / retention_d7_ratio_den, 4) AS retention_d7
+       round(retention_d7_ratio_wavg, 4) AS retention_d7
 FROM ads_team_performance_daily
 ORDER BY date DESC, team LIMIT 20
 FORMAT PrettyCompact"
