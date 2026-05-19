@@ -61,19 +61,30 @@ func splitSQL(content string) []string {
 	return stmts
 }
 
-// ExecETL 读取 ETL SQL 文件，将 named params 绑定后执行
+// ExecETL 读取 ETL SQL 文件，将 date_from / date_to 直接替换为字面量后执行。
+// ClickHouse Go 驱动对 Date 类型参数支持不稳定，改为字符串替换更可靠。
 func (r *EtlRepo) ExecETL(ctx context.Context, sqlFile string, params map[string]interface{}) error {
-	sql, err := os.ReadFile(sqlFile)
+	raw, err := os.ReadFile(sqlFile)
 	if err != nil {
 		return fmt.Errorf("read etl sql %s: %w", sqlFile, err)
 	}
-	args := make([]any, 0, len(params))
+	content := string(raw)
+	// 将 {key:Date} 占位符替换为字面量日期字符串
 	for k, v := range params {
-		args = append(args, driver.NamedValue{Name: k, Value: v})
+		var literal string
+		switch val := v.(type) {
+		case time.Time:
+			literal = "'" + val.Format("2006-01-02") + "'"
+		default:
+			literal = fmt.Sprintf("%v", val)
+		}
+		content = strings.ReplaceAll(content, "{"+k+":Date}", literal)
+		content = strings.ReplaceAll(content, "{"+k+":DateTime}", literal)
+		content = strings.ReplaceAll(content, "{"+k+":String}", "'"+fmt.Sprintf("%v", v)+"'")
 	}
 	ctx2, cancel := context.WithTimeout(ctx, 10*time.Minute)
 	defer cancel()
-	return r.conn.Exec(ctx2, string(sql), args...)
+	return r.conn.Exec(ctx2, content)
 }
 
 // DropPartition 删除指定分区（DWS 重算幂等用）

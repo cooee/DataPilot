@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS dim_product (
     product_name      String,
     team              LowCardinality(String),
     business_unit     LowCardinality(String),
-    product_category  Nullable(LowCardinality(String)),
+    product_category  LowCardinality(String) DEFAULT '',
     is_active         UInt8    DEFAULT 1,
     effective_from    Date     DEFAULT today(),
     effective_to      Nullable(Date),

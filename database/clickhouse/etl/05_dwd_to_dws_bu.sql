@@ -26,7 +26,7 @@ SELECT
     sum(d.retention_d7_ratio * d.dau) AS retention_d7_ratio_num,
     sum(d.dau)                        AS retention_d7_ratio_den,
     now64() AS _built_at
-FROM dwd_product_daily_metric FINAL AS d
+FROM dwd_product_daily_metric AS d FINAL
 LEFT JOIN (
     SELECT
         product_code,

@@ -39,6 +39,10 @@ func NewDQChecker(conn driver.Conn) *DQChecker {
 func (c *DQChecker) Check(ctx context.Context, dateFrom, dateTo time.Time) (*DQReport, error) {
 	report := &DQReport{DateFrom: dateFrom, DateTo: dateTo, OK: true}
 
+	// 统一转为 UTC 零时，避免驱动将 time.Time 序列化为 DateTime
+	dateFrom = dateFrom.UTC().Truncate(24 * time.Hour)
+	dateTo = dateTo.UTC().Truncate(24 * time.Hour)
+
 	checks := []func(context.Context, time.Time, time.Time) (DQResult, error){
 		c.checkDuplicates,
 		c.checkNegativeDAU,
@@ -99,18 +103,16 @@ func SummaryLine(r *DQReport) string {
 func (c *DQChecker) checkDuplicates(ctx context.Context, from, to time.Time) (DQResult, error) {
 	rule := "duplicate (date, product_code, source)"
 	var cnt uint64
-	err := c.conn.QueryRow(ctx, `
+	q := fmt.Sprintf(`
 		SELECT count()
 		FROM (
 			SELECT `+"`日期`, `产品编号`, `_source`"+`, count() AS n
 			FROM ods_product_daily_report FINAL
-			WHERE `+"`日期`"+` BETWEEN {from:Date} AND {to:Date}
+			WHERE `+"`日期`"+` BETWEEN '%s' AND '%s'
 			GROUP BY `+"`日期`, `产品编号`, `_source`"+`
 			HAVING n > 1
-		)`,
-		driver.NamedValue{Name: "from", Value: from},
-		driver.NamedValue{Name: "to", Value: to},
-	).Scan(&cnt)
+		)`, from.Format("2006-01-02"), to.Format("2006-01-02"))
+	err := c.conn.QueryRow(ctx, q).Scan(&cnt)
 	if err != nil {
 		return DQResult{}, fmt.Errorf("dq duplicate: %w", err)
 	}
@@ -132,12 +134,10 @@ func (c *DQChecker) checkNegativeRecharge(ctx context.Context, from, to time.Tim
 
 func (c *DQChecker) checkNegativeField(ctx context.Context, from, to time.Time, col, ruleName string) (DQResult, error) {
 	var cnt uint64
-	q := "SELECT count() FROM ods_product_daily_report FINAL " +
-		"WHERE `日期` BETWEEN {from:Date} AND {to:Date} AND toFloat64(" + col + ") < 0"
-	err := c.conn.QueryRow(ctx, q,
-		driver.NamedValue{Name: "from", Value: from},
-		driver.NamedValue{Name: "to", Value: to},
-	).Scan(&cnt)
+	q := fmt.Sprintf("SELECT count() FROM ods_product_daily_report FINAL "+
+		"WHERE `日期` BETWEEN '%s' AND '%s' AND toFloat64(%s) < 0",
+		from.Format("2006-01-02"), to.Format("2006-01-02"), col)
+	err := c.conn.QueryRow(ctx, q).Scan(&cnt)
 	if err != nil {
 		return DQResult{}, fmt.Errorf("dq %s: %w", ruleName, err)
 	}
@@ -153,19 +153,19 @@ func (c *DQChecker) checkNegativeField(ctx context.Context, from, to time.Time, 
 func (c *DQChecker) checkOutlierDAUChain(ctx context.Context, from, to time.Time) (DQResult, error) {
 	rule := "outlier DAU chain-ratio (|val-mean| > 3sigma, warn only)"
 	var cnt uint64
-	err := c.conn.QueryRow(ctx, `
+	q := fmt.Sprintf(`
 		WITH stats AS (
 			SELECT avg(`+"`日活环比`"+`) AS mu, stddevPop(`+"`日活环比`"+`) AS sigma
 			FROM ods_product_daily_report FINAL
-			WHERE `+"`日期`"+` BETWEEN {from:Date} AND {to:Date}
+			WHERE `+"`日期`"+` BETWEEN '%s' AND '%s'
 		)
 		SELECT count()
 		FROM ods_product_daily_report FINAL, stats
-		WHERE `+"`日期`"+` BETWEEN {from:Date} AND {to:Date}
+		WHERE `+"`日期`"+` BETWEEN '%s' AND '%s'
 		  AND abs(`+"`日活环比`"+` - mu) > 3 * sigma`,
-		driver.NamedValue{Name: "from", Value: from},
-		driver.NamedValue{Name: "to", Value: to},
-	).Scan(&cnt)
+		from.Format("2006-01-02"), to.Format("2006-01-02"),
+		from.Format("2006-01-02"), to.Format("2006-01-02"))
+	err := c.conn.QueryRow(ctx, q).Scan(&cnt)
 	if err != nil {
 		return DQResult{}, fmt.Errorf("dq outlier: %w", err)
 	}

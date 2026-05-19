@@ -49,7 +49,7 @@ SELECT
     d.conversion_old_paying_multi,
     d.arppu,
     now64() AS _built_at
-FROM dwd_product_daily_metric FINAL AS d
+FROM dwd_product_daily_metric AS d FINAL
 LEFT JOIN (
     SELECT
         product_code,
