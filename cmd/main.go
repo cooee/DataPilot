@@ -54,6 +54,17 @@ func main() {
 
 	providers.RegisterDependencies(injector)
 
+	for _, arg := range os.Args[1:] {
+		switch arg {
+		case "--test:gsheet:public":
+			runTestGSheetPublic()
+			return
+		case "--test:gsheet":
+			runTestGSheet(injector)
+			return
+		}
+	}
+
 	if !args(injector) {
 		return
 	}

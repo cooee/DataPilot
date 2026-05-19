@@ -10,6 +10,11 @@ const (
 	ENUM_PAGINATION_PER_PAGE = 10
 	ENUM_PAGINATION_PAGE     = 1
 
-	DB         = "db"
-	JWTService = "JWTService"
+	DB           = "db"
+	ClickHouseDB = "clickhouseDB"
+	JWTService   = "JWTService"
+
+	GoogleDocsService   = "googleDocsService"
+	GoogleSheetsService = "googleSheetsService"
+	GoogleDriveService  = "googleDriveService"
 )

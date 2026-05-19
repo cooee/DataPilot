@@ -65,6 +65,25 @@ migrate-create:
 seed: 
 	go run cmd/main.go --seed
 
+# 测试入口：通过 Google API 读取 Sheet（需要 service account 凭证）
+# 用法：make test-gsheet [url=<spreadsheet-url-or-id>]
+# 注意：必须用 `go run ./cmd` 而不是 `go run cmd/main.go`，否则同包下的其他 .go 文件不会被编译
+test-gsheet:
+	@if [ -z "$(url)" ]; then \
+		go run ./cmd --test:gsheet; \
+	else \
+		go run ./cmd --test:gsheet $(url); \
+	fi
+
+# 测试入口：直接读公开 Sheet 的 CSV 导出（零凭证，只适用于「知道链接的任何人」可查看的文档）
+# 用法：make test-gsheet-public [url=<spreadsheet-url-or-id>]
+test-gsheet-public:
+	@if [ -z "$(url)" ]; then \
+		go run ./cmd --test:gsheet:public; \
+	else \
+		go run ./cmd --test:gsheet:public $(url); \
+	fi
+
 migrate-seed: 
 	go run cmd/main.go --migrate:run --seed
 
