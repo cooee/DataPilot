@@ -26,7 +26,7 @@ func SetUpDatabaseConnection() *gorm.DB {
 	dbName := os.Getenv("DB_NAME")
 	dbPort := os.Getenv("DB_PORT")
 
-	dsn := fmt.Sprintf("host=%v user=%v password=%v dbname=%v port=%v", dbHost, dbUser, dbPass, dbName, dbPort)
+	dsn := fmt.Sprintf("host=%v user=%v password=%v dbname=%v port=%v sslmode=disable", dbHost, dbUser, dbPass, dbName, dbPort)
 
 	db, err := gorm.Open(postgres.New(postgres.Config{
 		DSN:                  dsn,
@@ -50,7 +50,7 @@ func SetUpTestDatabaseConnection() *gorm.DB {
 	dbName := getEnvOrDefault("DB_NAME", "test_db")
 	dbPort := getEnvOrDefault("DB_PORT", "5432")
 
-	dsn := fmt.Sprintf("host=%v user=%v password=%v dbname=%v port=%v", dbHost, dbUser, dbPass, dbName, dbPort)
+	dsn := fmt.Sprintf("host=%v user=%v password=%v dbname=%v port=%v sslmode=disable", dbHost, dbUser, dbPass, dbName, dbPort)
 
 	db, err := gorm.Open(postgres.New(postgres.Config{
 		DSN:                  dsn,
