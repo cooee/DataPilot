@@ -21,14 +21,21 @@ const (
 type syncArgs struct {
 	spreadsheetID string
 	gid           int
+	productType   string // 'paid' | 'free'
 	dateFrom      time.Time
 	dateTo        time.Time
+}
+
+// knownFreeGIDs 已知的免费产品 sheet gid（可在此追加）
+var knownFreeGIDs = map[int]bool{
+	469519483: true,
 }
 
 func parseSyncArgs(cmd string) syncArgs {
 	fs := flag.NewFlagSet(cmd, flag.ExitOnError)
 	id := fs.String("id", defaultSpreadsheetID, "Spreadsheet ID or URL")
 	gid := fs.Int("gid", defaultGID, "Sheet tab gid")
+	ptype := fs.String("type", "", "Product type: paid|free (auto-detected from gid if empty)")
 	from := fs.String("from", "", "Start date YYYY-MM-DD (default: 90 days ago)")
 	to := fs.String("to", "", "End date YYYY-MM-DD (default: today)")
 
@@ -61,8 +68,18 @@ func parseSyncArgs(cmd string) syncArgs {
 		}
 	}
 
+	// 自动推断 productType
+	productType := *ptype
+	if productType == "" {
+		if knownFreeGIDs[*gid] {
+			productType = "free"
+		} else {
+			productType = "paid"
+		}
+	}
+
 	sid := extractSpreadsheetID(*id)
-	return syncArgs{spreadsheetID: sid, gid: *gid, dateFrom: dateFrom, dateTo: dateTo}
+	return syncArgs{spreadsheetID: sid, gid: *gid, productType: productType, dateFrom: dateFrom, dateTo: dateTo}
 }
 
 // runSyncGSheet 是 --sync:xxx 命令的总入口。
@@ -76,13 +93,14 @@ func runSyncGSheet(injector *do.Injector, cmd string) {
 	ctx := context.Background()
 	etlParams := gsheetSvc.ETLParams{DateFrom: args.dateFrom, DateTo: args.dateTo}
 
-	log.Printf("[sync] cmd=%s  id=%s  gid=%d  from=%s  to=%s",
-		cmd, args.spreadsheetID, args.gid,
+	log.Printf("[sync] cmd=%s  id=%s  gid=%d  type=%s  from=%s  to=%s",
+		cmd, args.spreadsheetID, args.gid, args.productType,
 		args.dateFrom.Format("2006-01-02"), args.dateTo.Format("2006-01-02"))
 
 	switch cmd {
 	case "--sync:ods":
 		syncODS(ctx, loader, dqChecker, args)
+		log.Printf("[sync:ods] product_type=%s", args.productType)
 
 	case "--sync:dim":
 		syncETLStep(ctx, etlRunner, etlParams, "ODS→DIM", func(p gsheetSvc.ETLParams) error {
@@ -112,7 +130,7 @@ func runSyncGSheet(injector *do.Injector, cmd string) {
 }
 
 func syncODS(ctx context.Context, loader *gsheetSvc.ODSLoader, dq *gsheetSvc.DQChecker, args syncArgs) {
-	result, err := loader.Load(ctx, args.spreadsheetID, args.gid, "")
+	result, err := loader.Load(ctx, args.spreadsheetID, args.gid, args.productType, "")
 	if err != nil {
 		log.Fatalf("[sync:ods] load failed: %v", err)
 	}

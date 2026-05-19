@@ -49,12 +49,24 @@ func (r *EtlRepo) RunMigrations(ctx context.Context, migrationsDir string) error
 	return nil
 }
 
-// splitSQL 按分号+换行拆分多条语句，容忍尾部空白
+// splitSQL 按分号+换行拆分多条语句，过滤空语句和纯注释块
 func splitSQL(content string) []string {
 	var stmts []string
 	for _, s := range strings.Split(content, ";\n") {
 		s = strings.TrimSpace(s)
-		if s != "" {
+		if s == "" {
+			continue
+		}
+		// 跳过纯注释段（每行均以 -- 开头）
+		allComment := true
+		for _, line := range strings.Split(s, "\n") {
+			line = strings.TrimSpace(line)
+			if line != "" && !strings.HasPrefix(line, "--") {
+				allComment = false
+				break
+			}
+		}
+		if !allComment {
 			stmts = append(stmts, s)
 		}
 	}

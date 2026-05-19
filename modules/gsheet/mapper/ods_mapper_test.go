@@ -24,7 +24,7 @@ func makeRow() []string {
 }
 
 func TestMapRow_HappyPath(t *testing.T) {
-	r, warns, err := mapper.MapRow(makeRow(), 1, "gsheet:test")
+	r, warns, err := mapper.MapRow(makeRow(), 1, "paid", "gsheet:test")
 	require.NoError(t, err)
 	assert.Empty(t, warns)
 	assert.Equal(t, "JHA-031", r.ProductCode)
@@ -38,7 +38,7 @@ func TestMapRow_HappyPath(t *testing.T) {
 func TestMapRow_EmptyNumericField(t *testing.T) {
 	row := makeRow()
 	row[5] = "" // 日活 为空
-	r, warns, err := mapper.MapRow(row, 2, "gsheet:test")
+	r, warns, err := mapper.MapRow(row, 2, "paid", "gsheet:test")
 	require.NoError(t, err)
 	assert.Equal(t, uint64(0), r.DAU)
 	assert.NotEmpty(t, warns)
@@ -48,14 +48,14 @@ func TestMapRow_EmptyNumericField(t *testing.T) {
 func TestMapRow_InvalidDate(t *testing.T) {
 	row := makeRow()
 	row[0] = "not-a-date"
-	_, _, err := mapper.MapRow(row, 3, "gsheet:test")
+	_, _, err := mapper.MapRow(row, 3, "paid", "gsheet:test")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid date")
 }
 
 func TestMapRow_TooFewCols(t *testing.T) {
 	row := []string{"2026-05-01", "产品", "JHA-001"}
-	_, _, err := mapper.MapRow(row, 4, "gsheet:test")
+	_, _, err := mapper.MapRow(row, 4, "paid", "gsheet:test")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "cols")
 }
@@ -63,7 +63,7 @@ func TestMapRow_TooFewCols(t *testing.T) {
 func TestMapRow_NegativeUint(t *testing.T) {
 	row := makeRow()
 	row[5] = "-100" // 日活 为负数
-	r, warns, err := mapper.MapRow(row, 5, "gsheet:test")
+	r, warns, err := mapper.MapRow(row, 5, "paid", "gsheet:test")
 	require.NoError(t, err)
 	assert.Equal(t, uint64(0), r.DAU) // clamped to 0
 	assert.NotEmpty(t, warns)

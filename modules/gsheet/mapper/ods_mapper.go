@@ -26,7 +26,8 @@ var ExpectedHeaders = []string{
 
 // MapRow 把 CSV 一行（[]string）映射成 ODSRow。
 // rowNo 是 1-based 数据行编号（不含表头）。
-func MapRow(row []string, rowNo int, source string) (dto.ODSRow, []dto.ParseWarning, error) {
+// productType: 'paid' | 'free'。
+func MapRow(row []string, rowNo int, productType, source string) (dto.ODSRow, []dto.ParseWarning, error) {
 	if len(row) < len(ExpectedHeaders) {
 		return dto.ODSRow{}, nil, fmt.Errorf("row %d: got %d cols, need %d", rowNo, len(row), len(ExpectedHeaders))
 	}
@@ -104,6 +105,7 @@ func MapRow(row []string, rowNo int, source string) (dto.ODSRow, []dto.ParseWarn
 		ConversionOldPaying:   parseF("老充转化", row[37]),
 		OldUserDAU:            parseU("老用户日活", row[38]),
 		ARPPU:                 parseF("ARPPU", row[39]),
+		ProductType:           productType,
 		Source:                source,
 		SrcRowNo:              uint32(rowNo),
 		IngestedAt:            time.Now(),

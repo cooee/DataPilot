@@ -1,13 +1,29 @@
 -- ETL 02: ODS → DWD（中文列 → 英文规范列）
--- 使用 FINAL 保证 ReplacingMergeTree 去重后再读取。
--- dwd_product_daily_metric 同样使用 ReplacingMergeTree(ORDER BY date,product_code)，
--- 重复写入自动以最新 _version 获胜，幂等安全。
+-- 使用显式列名避免 ALTER TABLE 追加列后的列序错位问题。
 --
 -- 参数:
 --   {date_from:Date}
 --   {date_to:Date}
 
-INSERT INTO dwd_product_daily_metric
+INSERT INTO dwd_product_daily_metric (
+    date, product_code,
+    dau, dau_chain_ratio, old_user_dau,
+    recharge_total_amt, recharge_total_chain_ratio,
+    recharge_organic_amt, recharge_organic_chain_ratio,
+    recharge_channel_amt, recharge_channel_chain_ratio,
+    recharge_internal_amt, recharge_internal_chain_ratio,
+    new_user_total_cnt, new_user_total_chain_ratio,
+    new_user_organic_cnt, new_user_organic_chain_ratio,
+    new_user_channel_cnt, new_user_channel_chain_ratio,
+    new_user_internal_cnt, new_user_internal_chain_ratio,
+    new_paying_user_cnt, old_paying_user_cnt,
+    new_paying_user_amt, old_paying_user_amt,
+    recharge_order_cnt, payment_success_ratio,
+    retention_d1_ratio, retention_d3_ratio, retention_d7_ratio,
+    landing_page_visit_cnt, landing_page_click_cnt, landing_page_download_ratio,
+    conversion_total_multi, conversion_new_paying_multi, conversion_old_paying_multi,
+    arppu, product_type, _src_row_no, _ingested_at
+)
 SELECT
     `日期`             AS date,
     `产品编号`         AS product_code,
@@ -46,6 +62,7 @@ SELECT
     `新充转化`         AS conversion_new_paying_multi,
     `老充转化`         AS conversion_old_paying_multi,
     `ARPPU`            AS arppu,
+    product_type,
     `_src_row_no`,
     now64()            AS _ingested_at
 FROM ods_product_daily_report FINAL

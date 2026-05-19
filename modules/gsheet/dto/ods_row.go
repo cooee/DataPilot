@@ -46,7 +46,8 @@ type ODSRow struct {
 	ARPPU                 float64
 
 	// 元数据
-	Source     string
-	SrcRowNo   uint32
-	IngestedAt time.Time
+	ProductType string // 'paid' | 'free'
+	Source      string
+	SrcRowNo    uint32
+	IngestedAt  time.Time
 }

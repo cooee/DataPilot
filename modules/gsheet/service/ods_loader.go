@@ -42,8 +42,12 @@ type LoadResult struct {
 }
 
 // Load 拉取 spreadsheetID/gid 对应的 Sheet，解析并写入 ODS。
-// source 用于 _source 字段，可传空（自动从 spreadsheetID 推断）。
-func (l *ODSLoader) Load(ctx context.Context, spreadsheetID string, gid int, source string) (*LoadResult, error) {
+// productType: 'paid' | 'free'，传空时默认 'paid'。
+// source: _source 字段值，传空时自动推断。
+func (l *ODSLoader) Load(ctx context.Context, spreadsheetID string, gid int, productType, source string) (*LoadResult, error) {
+	if productType == "" {
+		productType = "paid"
+	}
 	if source == "" {
 		source = BuildSource(spreadsheetID, gid)
 	}
@@ -83,7 +87,7 @@ func (l *ODSLoader) Load(ctx context.Context, spreadsheetID string, gid int, sou
 
 	for i, row := range dataRows {
 		rowNo := i + 1
-		odsRow, warns, err := mapper.MapRow(row, rowNo, source)
+		odsRow, warns, err := mapper.MapRow(row, rowNo, productType, source)
 		if err != nil {
 			errCount++
 			log.Printf("[ods_loader] skip row %d: %v", rowNo, err)

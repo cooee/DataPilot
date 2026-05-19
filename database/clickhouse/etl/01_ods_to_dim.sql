@@ -7,14 +7,15 @@
 --   {date_to:Date}    结束日期（含）
 
 INSERT INTO dim_product
-    (product_code, product_name, team, business_unit, _source, _ingested_at)
+    (product_code, product_name, team, business_unit, product_type, _source, _ingested_at)
 SELECT
-    `产品编号`              AS product_code,
-    argMax(`产品名称`, `_ingested_at`) AS product_name,
-    argMax(`小组`,     `_ingested_at`) AS team,
-    argMax(`部门`,     `_ingested_at`) AS business_unit,
-    'ods:sync'              AS _source,
-    now64()                 AS _ingested_at
+    `产品编号`                          AS product_code,
+    argMax(`产品名称`,  `_ingested_at`) AS product_name,
+    argMax(`小组`,      `_ingested_at`) AS team,
+    argMax(`部门`,      `_ingested_at`) AS business_unit,
+    argMax(product_type,`_ingested_at`) AS product_type,
+    'ods:sync'                          AS _source,
+    now64()                             AS _ingested_at
 FROM ods_product_daily_report FINAL
 WHERE `日期` BETWEEN {date_from:Date} AND {date_to:Date}
 GROUP BY `产品编号`

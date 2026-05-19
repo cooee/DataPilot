@@ -28,7 +28,7 @@ const odsInsertSQL = "INSERT INTO ods_product_daily_report (" +
 	"`次留率`,`3留率`,`7留率`," +
 	"`下载页访问数`,`下载页点击数`,`落地页下载率`," +
 	"`总转化`,`新充转化`,`老充转化`,`老用户日活`,`ARPPU`," +
-	"_source,_src_row_no,_ingested_at)"
+	"product_type,_source,_src_row_no,_ingested_at)"
 
 // BatchInsert 把 rows 用 PrepareBatch 批量写入 ods_product_daily_report
 func (r *ODSRepo) BatchInsert(ctx context.Context, rows []dto.ODSRow) error {
@@ -62,7 +62,7 @@ func (r *ODSRepo) BatchInsert(ctx context.Context, rows []dto.ODSRow) error {
 			row.LandingPageVisit, row.LandingPageClick, row.LandingPageDownload,
 			row.ConversionTotal, row.ConversionNewPaying, row.ConversionOldPaying,
 			row.OldUserDAU, row.ARPPU,
-			row.Source, row.SrcRowNo, row.IngestedAt,
+			row.ProductType, row.Source, row.SrcRowNo, row.IngestedAt,
 		); err != nil {
 			return fmt.Errorf("append row %d: %w", row.SrcRowNo, err)
 		}
