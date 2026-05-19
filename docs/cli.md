@@ -16,6 +16,7 @@
 7. [数据验证](#7-数据验证)
 8. [数据清除 / 重置](#8-数据清除--重置)
 9. [常用场景速查](#9-常用场景速查)
+10. [Analytics 语义层查询](#10-analytics-语义层查询)
 
 ---
 
@@ -437,6 +438,62 @@ GROUP BY date, product_type
 ORDER BY date, product_type
 FORMAT PrettyCompact"
 ```
+
+---
+
+## 10. Analytics 语义层查询
+
+> 通过结构化参数查询 ClickHouse（非原始 SQL），输出表格或 JSON，便于终端使用和后续 AI 接入。  
+> 若需指标中文名/单位等语义信息，请先执行 `make migrate-seed`（未执行时 schema/query 仍可用，仅无 PG 语义 enrichment）。
+
+### 查看可用数据集
+
+```bash
+make analytics-schema
+# JSON：make analytics-schema ARGS="-format=json"
+```
+
+### 内置场景（preset）
+
+| preset | 说明 |
+|---|---|
+| `product-type-compare` | 某天 paid vs free 汇总对比（场景 F-方式一） |
+| `product-detail` | 产品明细按充值排序 |
+| `product-trend` | 多天 paid/free 走势 |
+| `team-performance` | 小组日表现（ADS 视图） |
+| `product-health` | 产品健康度 Top N |
+
+```bash
+# 付费 vs 免费对比（默认昨天）
+make analytics-query ARGS="-preset=product-type-compare -from=2026-05-18 -to=2026-05-18"
+
+# 产品明细
+make analytics-query ARGS="-preset=product-detail -from=2026-05-18 -to=2026-05-18"
+
+# 近 7 天走势
+make analytics-query ARGS="-preset=product-trend -from=2026-05-12 -to=2026-05-18"
+
+# JSON 输出（给 AI / 管道）
+make analytics-query ARGS="-preset=product-health -format=json"
+```
+
+### 自定义查询
+
+```bash
+make analytics-query ARGS='-dataset=dws_product_daily \
+  -metrics=dau,recharge_total_amt,retention_d7_ratio \
+  -dimensions=product_type \
+  -from=2026-05-18 -to=2026-05-18'
+
+# 过滤：product_type 仅 paid
+make analytics-query ARGS='-preset=product-detail -from=2026-05-18 -to=2026-05-18 \
+  -filter=product_type:eq:paid'
+
+# 完整 JSON 请求体
+make analytics-query ARGS='-json-file=query.json -format=json'
+```
+
+**filter 格式：** `field:op:value`，多条用 `|` 分隔。支持 `eq` `in` `between` 等。
 
 ---
 

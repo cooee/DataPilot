@@ -109,6 +109,17 @@ sync-dws:
 sync-all:
 	go run ./cmd --sync:all $(ARGS)
 
+# Analytics 语义层查询（ClickHouse）
+# 查看可用数据集：make analytics-schema
+# 内置场景：make analytics-query ARGS="-preset=product-type-compare -from=2026-05-18 -to=2026-05-18"
+# 自定义查询：make analytics-query ARGS='-dataset=dws_product_daily -metrics=dau,recharge_total_amt -dimensions=product_type -from=2026-05-18 -to=2026-05-18'
+# JSON 输出：make analytics-query ARGS="-preset=product-health -format=json"
+analytics-schema:
+	go run ./cmd --analytics:schema $(ARGS)
+
+analytics-query:
+	go run ./cmd --analytics:query $(ARGS)
+
 migrate-seed: 
 	go run cmd/main.go --migrate:run --seed
 

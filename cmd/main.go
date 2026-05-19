@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/Caknoooo/go-gin-clean-starter/middlewares"
+	"github.com/Caknoooo/go-gin-clean-starter/modules/analytics"
 	"github.com/Caknoooo/go-gin-clean-starter/modules/auth"
 	"github.com/Caknoooo/go-gin-clean-starter/modules/user"
 	"github.com/Caknoooo/go-gin-clean-starter/providers"
@@ -68,6 +69,12 @@ func main() {
 		case "--sync:ods", "--sync:dim", "--sync:dwd", "--sync:dws", "--sync:ads", "--sync:all":
 			runSyncGSheet(injector, arg)
 			return
+		case "--analytics:schema":
+			runAnalyticsSchema(injector)
+			return
+		case "--analytics:query":
+			runAnalyticsQuery(injector)
+			return
 		}
 	}
 
@@ -81,6 +88,7 @@ func main() {
 	// Register module routes
 	user.RegisterRoutes(server, injector)
 	auth.RegisterRoutes(server, injector)
+	analytics.RegisterRoutes(server, injector)
 
 	run(server)
 }
