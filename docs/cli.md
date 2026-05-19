@@ -177,15 +177,16 @@ make sync-dws ARGS="-from=2026-03-01 -to=2026-05-19"
 
 ```bash
 docker exec clickhouse-server clickhouse-client --password 123456 -q "
-SELECT 'ODS' AS layer, product_type, count() AS rows, uniq(\`产品编号\`) AS products
-FROM ods_product_daily_report FINAL GROUP BY product_type
-UNION ALL
-SELECT 'DWD', product_type, count(), uniq(product_code)
-FROM dwd_product_daily_metric FINAL GROUP BY product_type
-UNION ALL
-SELECT 'DWS_product', product_type, count(), uniq(product_code)
-FROM dws_product_daily GROUP BY product_type
-ORDER BY layer, product_type
+SELECT layer, product_type, rows, products FROM (
+    SELECT 'ODS' AS layer, product_type, count() AS rows, uniq(\`产品编号\`) AS products
+    FROM ods_product_daily_report FINAL GROUP BY product_type
+    UNION ALL
+    SELECT 'DWD', product_type, count(), uniq(product_code)
+    FROM dwd_product_daily_metric FINAL GROUP BY product_type
+    UNION ALL
+    SELECT 'DWS_product', product_type, count(), uniq(product_code)
+    FROM dws_product_daily GROUP BY product_type
+) ORDER BY layer, product_type
 FORMAT PrettyCompact"
 ```
 
