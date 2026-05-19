@@ -67,13 +67,13 @@ func (r *EtlRepo) ExecETL(ctx context.Context, sqlFile string, params map[string
 	if err != nil {
 		return fmt.Errorf("read etl sql %s: %w", sqlFile, err)
 	}
-	named := make([]driver.NamedValue, 0, len(params))
+	args := make([]any, 0, len(params))
 	for k, v := range params {
-		named = append(named, driver.NamedValue{Name: k, Value: v})
+		args = append(args, driver.NamedValue{Name: k, Value: v})
 	}
 	ctx2, cancel := context.WithTimeout(ctx, 10*time.Minute)
 	defer cancel()
-	return r.conn.Exec(ctx2, string(sql), named...)
+	return r.conn.Exec(ctx2, string(sql), args...)
 }
 
 // DropPartition 删除指定分区（DWS 重算幂等用）
