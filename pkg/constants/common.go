@@ -17,4 +17,12 @@ const (
 	GoogleDocsService   = "googleDocsService"
 	GoogleSheetsService = "googleSheetsService"
 	GoogleDriveService  = "googleDriveService"
+
+	// GSheet pipeline DI keys
+	ODSRepo    = "odsRepo"
+	EtlRepo    = "etlRepo"
+	CSVFetcher = "csvFetcher"
+	ODSLoader  = "odsLoader"
+	ETLRunner  = "etlRunner"
+	DQChecker  = "dqChecker"
 )

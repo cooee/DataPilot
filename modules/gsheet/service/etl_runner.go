@@ -108,5 +108,54 @@ func buildETLArgs(params map[string]interface{}) []driver.NamedValue {
 	return args
 }
 
+// RunStep 执行单个 ETL SQL 文件（无 DROP PARTITION）。
+func (r *ETLRunner) RunStep(ctx context.Context, sqlFile string, p ETLParams) error {
+	return r.etlRepo.ExecETL(ctx, sqlFile, map[string]interface{}{
+		"date_from": p.DateFrom,
+		"date_to":   p.DateTo,
+	})
+}
+
+// RunDWS 执行 DWD→DWS 三张表的 ETL（含 DROP PARTITION）。
+func (r *ETLRunner) RunDWS(ctx context.Context, p ETLParams) error {
+	dwsSteps := []struct {
+		name       string
+		sqlFile    string
+		dropTables []string
+	}{
+		{
+			name:       "DWD → DWS product",
+			sqlFile:    etlDir + "/03_dwd_to_dws_product.sql",
+			dropTables: []string{"dws_product_daily"},
+		},
+		{
+			name:       "DWD → DWS team",
+			sqlFile:    etlDir + "/04_dwd_to_dws_team.sql",
+			dropTables: []string{"dws_team_daily"},
+		},
+		{
+			name:       "DWD → DWS bu",
+			sqlFile:    etlDir + "/05_dwd_to_dws_bu.sql",
+			dropTables: []string{"dws_bu_daily"},
+		},
+	}
+	partitions := monthPartitions(p.DateFrom, p.DateTo)
+	params := map[string]interface{}{"date_from": p.DateFrom, "date_to": p.DateTo}
+	for _, step := range dwsSteps {
+		for _, tbl := range step.dropTables {
+			for _, part := range partitions {
+				if err := r.etlRepo.DropPartition(ctx, tbl, part); err != nil {
+					return fmt.Errorf("drop %s/%s: %w", tbl, part, err)
+				}
+			}
+		}
+		if err := r.etlRepo.ExecETL(ctx, step.sqlFile, params); err != nil {
+			return fmt.Errorf("%s: %w", step.name, err)
+		}
+		log.Printf("[etl] ✓ %s done", step.name)
+	}
+	return nil
+}
+
 // MonthPartitionsExported 导出 monthPartitions 供包外测试。
 func MonthPartitionsExported(from, to time.Time) []string { return monthPartitions(from, to) }

@@ -88,7 +88,12 @@ test-gsheet-public:
 ch-migrate:
 	go run ./cmd --ch:migrate
 
-# GSheet 同步命令（可追加 ARGS="-id=xxx -from=YYYY-MM-DD -to=YYYY-MM-DD" 等参数）
+# GSheet 同步命令
+# 可选参数（通过 ARGS 传入，例如 ARGS="-id=1sJZB... -from=2026-03-01 -to=2026-05-19 -gid=0"）
+#   -id    spreadsheet ID 或完整 URL（默认使用代码中的 defaultSpreadsheetID）
+#   -from  起始日期 YYYY-MM-DD（默认 90 天前）
+#   -to    结束日期 YYYY-MM-DD（默认今天）
+#   -gid   sheet tab gid（默认 0）
 sync-ods:
 	go run ./cmd --sync:ods $(ARGS)
 
@@ -100,9 +105,6 @@ sync-dwd:
 
 sync-dws:
 	go run ./cmd --sync:dws $(ARGS)
-
-sync-ads:
-	go run ./cmd --sync:ads
 
 sync-all:
 	go run ./cmd --sync:all $(ARGS)
