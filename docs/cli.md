@@ -443,3 +443,5 @@ FORMAT PrettyCompact"
 > 文档对应代码版本：`main` 分支，2026-05-19  
 > ClickHouse 地址：`localhost:9000`（native）/ `localhost:8123`（HTTP）  
 > PostgreSQL 地址：`localhost:5432`
+
+http://localhost:8123/play?user=default&password=123456
