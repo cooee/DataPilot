@@ -20,7 +20,21 @@ make migrate-seed
 
 ---
 
-## 二、一键日报（推荐）
+## 二、一键 HTML 日报（推荐给运营）
+
+```bash
+# 全链路 + 精美 HTML（含异常表 + 7 日预测）
+make daily-report-html ARGS="-date=2026-05-18"
+
+# 仅生成（数据已同步）
+make daily-report-html ARGS="-skip-sync -date=2026-05-18 -out=reports/daily-2026-05-18.html"
+```
+
+浏览器打开 `reports/daily-YYYY-MM-DD.html`。Cursor Skill：`.cursor/skills/datapilot-daily-ops-report/SKILL.md`。
+
+---
+
+## 三、一键终端日报
 
 ```bash
 # 默认：同步「昨天」数据，报告日=昨天，输出表格
@@ -62,10 +76,11 @@ make daily-report ARGS="-skip-sync -date=2026-05-18"
 | ① | `product-type-compare` | 报告日 paid vs free 核心指标对比 |
 | ② | `team-performance` | 报告日前后 7 日小组表现 |
 | ③ | `product-health` | 近 30 日健康分 Top 20 |
+| ④ | `anomaly-detection` | 报告日超出 ±3σ 的指标异常 |
 
 ---
 
-## 三、分步执行（排障 / 补数时用）
+## 四、分步执行（排障 / 补数时用）
 
 与 [cli.md](../cli.md) 场景 B 一致：
 
@@ -95,7 +110,7 @@ make analytics-query ARGS="-preset=product-health"
 
 ---
 
-## 四、DQ 报告判读
+## 五、DQ 报告判读
 
 ```
 [dq] ===== DQ Report [2026-05-18 ~ 2026-05-18] =====
@@ -114,7 +129,7 @@ make analytics-query ARGS="-preset=product-health"
 
 ---
 
-## 五、验收清单（端到端）
+## 六、验收清单（端到端）
 
 - [ ] `make daily-report ARGS="-date=YYYY-MM-DD"` 无 fatal 退出
 - [ ] DQ `Overall: ALL PASS`（或已知离群警告已记录）
@@ -125,7 +140,7 @@ make analytics-query ARGS="-preset=product-health"
 
 ---
 
-## 六、常见问题
+## 七、常见问题
 
 | 现象 | 处理 |
 |------|------|
@@ -136,7 +151,7 @@ make analytics-query ARGS="-preset=product-health"
 
 ---
 
-## 七、日报交付模板（复制到 IM / 文档）
+## 八、日报交付模板（复制到 IM / 文档）
 
 ```markdown
 ## 运营日报 YYYY-MM-DD

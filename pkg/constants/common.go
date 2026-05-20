@@ -25,4 +25,9 @@ const (
 	ODSLoader  = "odsLoader"
 	ETLRunner  = "etlRunner"
 	DQChecker  = "dqChecker"
+
+	// Site product pipeline (gid=553168897)
+	SiteODSRepo   = "siteODSRepo"
+	SiteODSLoader = "siteODSLoader"
+	SiteDQChecker = "siteDQChecker"
 )

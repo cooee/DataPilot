@@ -21,6 +21,7 @@ var dailyReportPresets = []struct {
 	{"① 付费 vs 免费汇总（报告日）", "product-type-compare"},
 	{"② 小组日表现（近 7 日）", "team-performance"},
 	{"③ 产品健康度 Top 20", "product-health"},
+	{"④ 指标异常（±3σ，报告日）", "anomaly-detection"},
 }
 
 type dailyReportArgs struct {

@@ -46,6 +46,7 @@ func RegisterDependencies(injector *do.Injector) {
 	InitGoogleServices(injector)
 	InitGSheetServices(injector)
 	InitAnalyticsServices(injector)
+	InitAgentServices(injector)
 
 	do.ProvideNamed(injector, constants.JWTService, func(i *do.Injector) (authService.JWTService, error) {
 		return authService.NewJWTService(), nil

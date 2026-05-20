@@ -4,7 +4,9 @@ import (
 	"log"
 	"os"
 
+	"github.com/Caknoooo/go-gin-clean-starter/config"
 	"github.com/Caknoooo/go-gin-clean-starter/middlewares"
+	"github.com/Caknoooo/go-gin-clean-starter/modules/agent"
 	"github.com/Caknoooo/go-gin-clean-starter/modules/analytics"
 	"github.com/Caknoooo/go-gin-clean-starter/modules/auth"
 	"github.com/Caknoooo/go-gin-clean-starter/modules/user"
@@ -49,6 +51,8 @@ func run(server *gin.Engine) {
 }
 
 func main() {
+	config.LoadEnv()
+
 	var (
 		injector = do.New()
 	)
@@ -69,6 +73,9 @@ func main() {
 		case "--sync:ods", "--sync:dim", "--sync:dwd", "--sync:dws", "--sync:ads", "--sync:all":
 			runSyncGSheet(injector, arg)
 			return
+		case "--sync:ods:site", "--sync:site:all":
+			runSyncSiteGSheet(injector, arg)
+			return
 		case "--analytics:schema":
 			runAnalyticsSchema(injector)
 			return
@@ -77,6 +84,21 @@ func main() {
 			return
 		case "--report:daily":
 			runDailyReport(injector)
+			return
+		case "--report:daily-html":
+			runDailyReportHTML(injector)
+			return
+		case "--report:daily-html-llm":
+			runDailyReportHTMLLLM(injector)
+			return
+		case "--agent:ask":
+			runAgentAsk(injector)
+			return
+		case "--agent:anomalies":
+			runAgentAnomalies(injector)
+			return
+		case "--agent:llm-ping":
+			runAgentLLMPing()
 			return
 		}
 	}
@@ -92,6 +114,7 @@ func main() {
 	user.RegisterRoutes(server, injector)
 	auth.RegisterRoutes(server, injector)
 	analytics.RegisterRoutes(server, injector)
+	agent.RegisterRoutes(server, injector)
 
 	run(server)
 }

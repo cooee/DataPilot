@@ -18,6 +18,7 @@
 9. [常用场景速查](#9-常用场景速查)
 10. [Analytics 语义层查询](#10-analytics-语义层查询)
 11. [每日运营日报（一键 SOP）](#11-每日运营日报一键-sop)
+12. [AI Agent（指标问答 / 异常列举）](#12-ai-agent指标问答--异常列举)
 
 ---
 
@@ -74,6 +75,8 @@ make ch-migrate
 | `006_dws_bu_daily.sql` | `dws_bu_daily` | DWS 部门日汇总 |
 | `007_ads_views.sql` | `ads_*` 三个视图 | ADS 应用层视图 |
 | `008_add_product_type.sql` | 各表新增 `product_type` 列 | paid/free 产品区分 |
+| `010_site_product_pipeline.sql` | `ods/dim/dwd/dws_site_*` 四表 | 站点产品（gid=553168897） |
+| `009_ads_anomaly_detection.sql` | `ads_product_anomaly_daily` | 30 日基线 ±3σ 异常检测 |
 
 ---
 
@@ -113,6 +116,7 @@ make migrate-seed
 |---|---|---|
 | 付费产品 | `0` | `paid`（自动） |
 | 免费产品 | `469519483` | `free`（自动） |
+| **站点产品** | `553168897` | **`site`**（独立管线，见下文） |
 
 ### 同步付费产品
 
@@ -158,17 +162,43 @@ make sync-dws ARGS="-from=2026-03-01 -to=2026-05-19"
 
 ## 6. 一键全量同步
 
-> 等价于：sync-ods（付费）+ sync-ods（免费）+ DIM + DWD + DWS
+> 等价于：**sync-ods（gid=0 付费）+ sync-ods（gid=469519483 免费）+ sync-ods:site（gid=553168897）+ 各自 DIM/DWD/DWS**  
+> `--sync:all` **忽略 `-gid`**，固定同步三个 Sheet。
 
 ```bash
-# 付费产品全量
-make sync-all ARGS="-gid=0 -from=2026-03-01 -to=2026-05-19"
+# 付费 + 免费 ODS，再跑全链路 ETL（推荐）
+make sync-all ARGS="-from=2026-03-01 -to=2026-05-19"
+./datapilot --sync:all -from=2026-03-01 -to=2026-05-20
 
-# 免费产品 ODS 追加后再跑 ETL
+# 仅同步某一个 Sheet 时用 sync:ods 并指定 -gid
 make sync-ods ARGS="-gid=469519483 -from=2026-03-01 -to=2026-05-19"
-make sync-dim ARGS="-from=2026-03-01 -to=2026-05-19"
-make sync-dwd ARGS="-from=2026-03-01 -to=2026-05-19"
-make sync-dws ARGS="-from=2026-03-01 -to=2026-05-19"
+```
+
+### 站点产品（gid=553168897，平行管线）
+
+> 11 列结构（日活跃数 / 日导量新增 / 日导量充值），已包含在 `--sync:all`；也可单独执行下方命令。  
+> 详见 [docs/schema/site-product-sheet.md](schema/site-product-sheet.md)。
+
+```bash
+# 先执行迁移（首次）
+make ch-migrate
+
+# 仅 ODS + DQ
+make sync-ods-site ARGS="-from=2026-05-01 -to=2026-05-18"
+./datapilot --sync:ods:site -from=2026-05-01 -to=2026-05-18
+
+# ODS → DIM → DWD → DWS
+make sync-site-all ARGS="-from=2026-05-01 -to=2026-05-18"
+./datapilot --sync:site:all -from=2026-05-01 -to=2026-05-18
+```
+
+验证站点 DWS：
+
+```bash
+docker exec clickhouse-server clickhouse-client --password 123456 -q "
+SELECT date, count() AS rows, uniq(product_code) AS products, sum(dau) AS dau
+FROM dws_site_product_daily
+GROUP BY date ORDER BY date"
 ```
 
 ---
@@ -463,6 +493,9 @@ make analytics-schema
 | `product-trend` | 多天 paid/free 走势 |
 | `team-performance` | 小组日表现（ADS 视图） |
 | `product-health` | 产品健康度 Top N |
+| `anomaly-detection` | 报告日异常（≥2 天历史用 ±3σ；仅 1 天历史用环比 ≥30%） |
+| `anomaly-watch` | 报告日偏离度 Top 30（含无异常时的排查） |
+| `anomaly-baseline` | 产品 30 日基线上下界 |
 
 ```bash
 # 付费 vs 免费对比（默认昨天）
@@ -476,6 +509,11 @@ make analytics-query ARGS="-preset=product-trend -from=2026-05-12 -to=2026-05-18
 
 # JSON 输出（给 AI / 管道）
 make analytics-query ARGS="-preset=product-health -format=json"
+
+# 异常检测（需先 make ch-migrate 应用 009 视图）
+make analytics-query ARGS="-preset=anomaly-detection -from=2026-05-18 -to=2026-05-18"
+make analytics-query ARGS="-preset=anomaly-watch -from=2026-05-18 -to=2026-05-18"
+make analytics-query ARGS="-preset=anomaly-baseline"
 ```
 
 ### 自定义查询
@@ -513,6 +551,30 @@ make daily-report ARGS="-from=2026-05-12 -to=2026-05-18 -date=2026-05-18 -format
 
 # 仅刷新查询（跳过同步）
 make daily-report ARGS="-skip-sync -date=2026-05-18"
+
+# HTML 日报（异常 + 7 日线性预测，输出 reports/daily-YYYY-MM-DD.html）
+make daily-report-html ARGS="-date=2026-05-18"
+./datapilot --report:daily-html -skip-sync -date=2026-05-18 -out=reports/daily-2026-05-18.html
+```
+
+Cursor Skill：`.cursor/skills/datapilot-daily-ops-report/SKILL.md`。
+
+---
+
+## 12. AI Agent（指标问答 / 异常列举）
+
+> 详见 [docs/agent/README.md](agent/README.md)
+
+```bash
+# 指标问答（规则 NL→语义层）
+make agent-ask ARGS='-q="2026-05-18 付费和免费日活充值对比" -date=2026-05-18'
+
+# 异常产品
+make agent-anomalies ARGS="-date=2026-05-18"
+
+# HTTP（需 JWT）
+# POST /api/agent/metrics/ask
+# POST /api/agent/anomalies
 ```
 
 ---

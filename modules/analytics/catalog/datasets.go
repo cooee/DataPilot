@@ -121,6 +121,49 @@ var Datasets = map[string]DatasetDef{
 			"retention_d7_ratio_wavg":   {AggFunc: AggNone, Kind: KindNumber, MetricKey: "retention_d7_ratio"},
 		},
 	},
+	"ads_anomaly_baseline": {
+		Name:        "ads_anomaly_baseline",
+		Label:       "异常检测基线（30日）",
+		Description: "ADS 视图：各产品 dau/充值/7留 近30日均值与 ±3σ 上下界",
+		Table:       "ads_anomaly_baseline",
+		DateColumn:  "",
+		Dimensions: map[string]DimensionDef{
+			"product_code": {Kind: KindString},
+			"metric":       {Kind: KindString},
+		},
+		Metrics: map[string]MetricDef{
+			"mean":         {AggFunc: AggNone, Kind: KindNumber},
+			"std":          {AggFunc: AggNone, Kind: KindNumber},
+			"upper_3sigma": {AggFunc: AggNone, Kind: KindNumber},
+			"lower_3sigma": {AggFunc: AggNone, Kind: KindNumber},
+		},
+	},
+	"ads_product_anomaly_daily": {
+		Name:        "ads_product_anomaly_daily",
+		Label:       "产品指标异常（日）",
+		Description: "ADS 视图：每日指标值对比30日基线，标记超出 ±3σ 的异常",
+		Table:       "ads_product_anomaly_daily",
+		DateColumn:  "date",
+		Dimensions: map[string]DimensionDef{
+			"date":              {Kind: KindDate},
+			"product_code":      {Kind: KindString},
+			"product_name":      {Kind: KindString},
+			"team":              {Kind: KindString},
+			"product_type":      {Kind: KindString},
+			"metric":            {Kind: KindString},
+			"anomaly_direction": {Kind: KindString},
+		},
+		Metrics: map[string]MetricDef{
+			"value":          {AggFunc: AggNone, Kind: KindNumber},
+			"baseline_mean":  {AggFunc: AggNone, Kind: KindNumber},
+			"baseline_std":   {AggFunc: AggNone, Kind: KindNumber},
+			"baseline_cnt":   {AggFunc: AggNone, Kind: KindNumber},
+			"upper_3sigma":   {AggFunc: AggNone, Kind: KindNumber},
+			"lower_3sigma":   {AggFunc: AggNone, Kind: KindNumber},
+			"is_anomaly":     {AggFunc: AggNone, Kind: KindNumber},
+			"z_score":        {AggFunc: AggNone, Kind: KindNumber},
+		},
+	},
 }
 
 func GetDataset(name string) (DatasetDef, bool) {

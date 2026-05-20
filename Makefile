@@ -12,8 +12,8 @@ POSTGRES_CONTAINER_NAME=${APP_NAME}-db
 dep: 
 	go mod tidy
 
-run: 
-	go run cmd/main.go
+run:
+	go run ./cmd
 
 build:
 	go build -o datapilot ./cmd
@@ -43,27 +43,27 @@ module:
 
 # Commands (without docker)
 migrate:
-	go run cmd/main.go --migrate:run
+	go run ./cmd --migrate:run
 
 migrate-rollback:
-	go run cmd/main.go --migrate:rollback
+	go run ./cmd --migrate:rollback
 
 migrate-rollback-batch:
 	@if [ -z "$(batch)" ]; then echo "Usage: make migrate-rollback-batch batch=<batch_number>"; exit 1; fi
-	go run cmd/main.go --migrate:rollback $(batch)
+	go run ./cmd --migrate:rollback $(batch)
 
 migrate-rollback-all:
-	go run cmd/main.go --migrate:rollback:all
+	go run ./cmd --migrate:rollback:all
 
 migrate-status:
-	go run cmd/main.go --migrate:status
+	go run ./cmd --migrate:status
 
 migrate-create:
 	@if [ -z "$(name)" ]; then echo "Usage: make migrate-create name=<migration_name>"; exit 1; fi
-	go run cmd/main.go --migrate:create:$(name)
+	go run ./cmd --migrate:create:$(name)
 
-seed: 
-	go run cmd/main.go --seed
+seed:
+	go run ./cmd --seed
 
 # 测试入口：通过 Google API 读取 Sheet（需要 service account 凭证）
 # 用法：make test-gsheet [url=<spreadsheet-url-or-id>]
@@ -109,6 +109,13 @@ sync-dws:
 sync-all:
 	go run ./cmd --sync:all $(ARGS)
 
+# 站点产品（gid=553168897，独立 ODS/DWD/DWS，不影响 sync-all）
+sync-ods-site:
+	go run ./cmd --sync:ods:site $(ARGS)
+
+sync-site-all:
+	go run ./cmd --sync:site:all $(ARGS)
+
 # Analytics 语义层查询（ClickHouse）
 # 查看可用数据集：make analytics-schema
 # 内置场景：make analytics-query ARGS="-preset=product-type-compare -from=2026-05-18 -to=2026-05-18"
@@ -126,8 +133,30 @@ analytics-query:
 daily-report:
 	go run ./cmd --report:daily $(ARGS)
 
-migrate-seed: 
-	go run cmd/main.go --migrate:run --seed
+# 每日运营 HTML 报表（含异常解读 + 7 日线性预测）
+# ARGS="-date=2026-05-18 -out=reports/daily-2026-05-18.html"
+# 仅生成：ARGS="-skip-sync -date=2026-05-18"
+daily-report-html:
+	go run ./cmd --report:daily-html $(ARGS)
+
+# 大模型直接生成 HTML（Gemini + Skill + Tab 约束 + 模型标识）
+daily-report-html-llm:
+	go run ./cmd --report:daily-html-llm $(ARGS)
+
+# AI Agent（规则编排 NL→语义层，v1.1）
+agent-ask:
+	go run ./cmd --agent:ask $(ARGS)
+
+agent-anomalies:
+	go run ./cmd --agent:anomalies $(ARGS)
+
+# 验证 LLM Provider（Gemini Key / 模型 / 连通性）
+# 完整检查含编排：make agent-llm-ping ARGS="-orch"
+agent-llm-ping:
+	go run ./cmd --agent:llm-ping $(ARGS)
+
+migrate-seed:
+	go run ./cmd --migrate:run --seed
 
 # Postgres commands
 container-postgres:

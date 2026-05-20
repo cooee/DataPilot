@@ -118,18 +118,53 @@ func runSyncGSheet(injector *do.Injector, cmd string) {
 		})
 
 	case "--sync:all":
-		syncODS(ctx, loader, dqChecker, args)
+		siteLoader := do.MustInvokeNamed[*gsheetSvc.SiteODSLoader](injector, constants.SiteODSLoader)
+		siteDQ := do.MustInvokeNamed[*gsheetSvc.SiteDQChecker](injector, constants.SiteDQChecker)
+		syncAllODS(ctx, loader, dqChecker, siteLoader, siteDQ, args)
 		if err := etlRunner.RunAll(ctx, etlParams); err != nil {
-			log.Fatalf("[sync:all] ETL failed: %v", err)
+			log.Fatalf("[sync:all] paid/free ETL failed: %v", err)
 		}
-		log.Println("[sync:all] done")
+		if err := etlRunner.RunSiteAll(ctx, etlParams); err != nil {
+			log.Fatalf("[sync:all] site ETL failed: %v", err)
+		}
+		log.Println("[sync:all] done (paid+free+site ODS → DIM → DWD → DWS)")
 
 	default:
 		log.Fatalf("unknown sync command: %s", cmd)
 	}
 }
 
+// syncAllODS 同步付费 + 免费 + 站点三个 Sheet，再由调用方跑各自 ETL。
+func syncAllODS(
+	ctx context.Context,
+	loader *gsheetSvc.ODSLoader,
+	dq *gsheetSvc.DQChecker,
+	siteLoader *gsheetSvc.SiteODSLoader,
+	siteDQ *gsheetSvc.SiteDQChecker,
+	args syncArgs,
+) {
+	log.Println("[sync:all] step 1/3: ODS 付费 Sheet gid=0")
+	syncODS(ctx, loader, dq, syncArgs{
+		spreadsheetID: args.spreadsheetID,
+		gid:           0,
+		productType:   "paid",
+		dateFrom:      args.dateFrom,
+		dateTo:        args.dateTo,
+	})
+	log.Println("[sync:all] step 2/3: ODS 免费 Sheet gid=469519483")
+	syncODS(ctx, loader, dq, syncArgs{
+		spreadsheetID: args.spreadsheetID,
+		gid:           469519483,
+		productType:   "free",
+		dateFrom:      args.dateFrom,
+		dateTo:        args.dateTo,
+	})
+	log.Printf("[sync:all] step 3/3: ODS 站点 Sheet gid=%d", gsheetSvc.DefaultSiteGID())
+	syncSiteODS(ctx, siteLoader, siteDQ, args)
+}
+
 func syncODS(ctx context.Context, loader *gsheetSvc.ODSLoader, dq *gsheetSvc.DQChecker, args syncArgs) {
+	log.Printf("[sync:ods] gid=%d product_type=%s", args.gid, args.productType)
 	result, err := loader.Load(ctx, args.spreadsheetID, args.gid, args.productType, "")
 	if err != nil {
 		log.Fatalf("[sync:ods] load failed: %v", err)

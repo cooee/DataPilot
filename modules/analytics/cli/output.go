@@ -41,6 +41,10 @@ func printTable(result *dto.QueryResult, meta *dto.QueryMeta) {
 
 	if len(result.Rows) == 0 {
 		fmt.Println("(no rows)")
+		if meta != nil && meta.Dataset == "ads_product_anomaly_daily" {
+			fmt.Fprintln(os.Stderr, "提示: 无 ±3σ 异常。可尝试 -preset=anomaly-watch 查看偏离度；")
+			fmt.Fprintln(os.Stderr, "      或补录更多历史日期后重跑 sync（每产品需≥2天才能计算 std）。")
+		}
 		return
 	}
 

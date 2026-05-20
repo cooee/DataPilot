@@ -14,6 +14,9 @@ var Presets = map[string]func(dateFrom, dateTo string) (*dto.QueryRequest, error
 	"product-trend":        presetProductTrend,
 	"team-performance":     presetTeamPerformance,
 	"product-health":       presetProductHealth,
+	"anomaly-detection":    presetAnomalyDetection,
+	"anomaly-watch":        presetAnomalyWatch,
+	"anomaly-baseline":     presetAnomalyBaseline,
 }
 
 func presetProductTypeCompare(from, to string) (*dto.QueryRequest, error) {
@@ -86,6 +89,56 @@ func presetProductHealth(_from, _to string) (*dto.QueryRequest, error) {
 		},
 		OrderBy: []dto.OrderBy{{Field: "health_score", Desc: true}},
 		Limit:   20,
+	}, nil
+}
+
+// presetAnomalyDetection 报告日超出 ±3σ 的产品指标异常（需至少 2 天历史，std>0）。
+func presetAnomalyDetection(from, to string) (*dto.QueryRequest, error) {
+	from, to, err := resolveDateRange(from, to, true)
+	if err != nil {
+		return nil, err
+	}
+	return &dto.QueryRequest{
+		Dataset: "ads_product_anomaly_daily",
+		Metrics: []string{"value", "baseline_mean", "baseline_std", "baseline_cnt", "upper_3sigma", "lower_3sigma", "z_score"},
+		Dimensions: []string{
+			"date", "product_code", "product_name", "team", "metric", "anomaly_direction",
+		},
+		DateRange: &dto.DateRange{From: from, To: to},
+		Filters: []dto.Filter{
+			{Field: "is_anomaly", Operator: "eq", Value: 1},
+		},
+		OrderBy: []dto.OrderBy{{Field: "z_score", Desc: true}},
+		Limit:   100,
+	}, nil
+}
+
+// presetAnomalyWatch 报告日偏离度 Top N（含 insufficient_baseline，便于历史不足时排查）。
+func presetAnomalyWatch(from, to string) (*dto.QueryRequest, error) {
+	from, to, err := resolveDateRange(from, to, true)
+	if err != nil {
+		return nil, err
+	}
+	return &dto.QueryRequest{
+		Dataset: "ads_product_anomaly_daily",
+		Metrics: []string{"value", "baseline_mean", "baseline_std", "z_score", "is_anomaly"},
+		Dimensions: []string{
+			"date", "product_code", "product_name", "team", "metric", "anomaly_direction",
+		},
+		DateRange: &dto.DateRange{From: from, To: to},
+		OrderBy:   []dto.OrderBy{{Field: "z_score", Desc: true}},
+		Limit:     30,
+	}, nil
+}
+
+// presetAnomalyBaseline 查看产品 30 日基线区间（不含当日值）。
+func presetAnomalyBaseline(_from, _to string) (*dto.QueryRequest, error) {
+	return &dto.QueryRequest{
+		Dataset:    "ads_anomaly_baseline",
+		Metrics:    []string{"mean", "std", "upper_3sigma", "lower_3sigma"},
+		Dimensions: []string{"product_code", "metric"},
+		OrderBy:    []dto.OrderBy{{Field: "product_code", Desc: false}},
+		Limit:      200,
 	}, nil
 }
 

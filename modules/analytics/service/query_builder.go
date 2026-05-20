@@ -210,15 +210,11 @@ func buildOrderBy(orders []dto.OrderBy, ds catalog.DatasetDef, grouped bool) str
 		if o.Desc {
 			dir = "DESC"
 		}
+		// GROUP BY 时 ORDER BY 使用 SELECT 列别名，避免 sum(x) 嵌套在另一聚合中（CH code 184）。
 		field := o.Field
 		if grouped {
-			if def, ok := ds.Metrics[o.Field]; ok {
-				switch def.AggFunc {
-				case catalog.AggNone:
-					field = fmt.Sprintf("any(%s)", o.Field)
-				default:
-					field = fmt.Sprintf("%s(%s)", def.AggFunc, o.Field)
-				}
+			if _, ok := ds.Metrics[o.Field]; ok {
+				field = o.Field
 			}
 		}
 		parts = append(parts, field+" "+dir)

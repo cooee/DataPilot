@@ -40,4 +40,20 @@ func InitGSheetServices(injector *do.Injector) {
 		conn := do.MustInvokeNamed[driver.Conn](i, constants.ClickHouseDB)
 		return gsheetSvc.NewDQChecker(conn), nil
 	})
+
+	do.ProvideNamed(injector, constants.SiteODSRepo, func(i *do.Injector) (*gsheetRepo.SiteODSRepo, error) {
+		conn := do.MustInvokeNamed[driver.Conn](i, constants.ClickHouseDB)
+		return gsheetRepo.NewSiteODSRepo(conn), nil
+	})
+
+	do.ProvideNamed(injector, constants.SiteODSLoader, func(i *do.Injector) (*gsheetSvc.SiteODSLoader, error) {
+		fetcher := do.MustInvokeNamed[*gsheetSvc.CSVFetcher](i, constants.CSVFetcher)
+		repo := do.MustInvokeNamed[*gsheetRepo.SiteODSRepo](i, constants.SiteODSRepo)
+		return gsheetSvc.NewSiteODSLoader(fetcher, repo), nil
+	})
+
+	do.ProvideNamed(injector, constants.SiteDQChecker, func(i *do.Injector) (*gsheetSvc.SiteDQChecker, error) {
+		conn := do.MustInvokeNamed[driver.Conn](i, constants.ClickHouseDB)
+		return gsheetSvc.NewSiteDQChecker(conn), nil
+	})
 }
