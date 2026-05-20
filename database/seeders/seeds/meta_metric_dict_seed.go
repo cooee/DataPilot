@@ -94,6 +94,16 @@ func SeedMetaMetricDict(db *gorm.DB) error {
 		// ---------- ARPPU ----------
 		{MetricKey: "arppu", MetricNameZH: "ARPPU", Category: "arppu", Unit: "amount", Direction: "higher_better",
 			Description: "每付费用户平均收入（Average Revenue Per Paying User），衡量付费用户价值"},
+
+		// ---------- 站点产品（dws_site_product_daily）----------
+		{MetricKey: "lead_new_cnt", MetricNameZH: "日导量新增", Category: "site_lead", Unit: "count", Direction: "higher_better",
+			Description: "站点产品当日导量新增用户数（仅站点产品线）"},
+		{MetricKey: "lead_new_chain_ratio", MetricNameZH: "日导量新增环比", Category: "site_lead", Unit: "ratio", Direction: "higher_better",
+			Description: "日导量新增相较前一日的变化比例"},
+		{MetricKey: "lead_recharge_amt", MetricNameZH: "日导量充值", Category: "site_lead", Unit: "amount", Direction: "higher_better",
+			Description: "站点产品当日导量带来的充值金额（元），与 paid 总充值口径不同"},
+		{MetricKey: "lead_recharge_chain_ratio", MetricNameZH: "日导量充值环比", Category: "site_lead", Unit: "ratio", Direction: "higher_better",
+			Description: "日导量充值相较前一日的变化比例"},
 	}
 
 	return db.Clauses(clause.OnConflict{

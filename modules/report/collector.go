@@ -3,6 +3,7 @@ package report
 import (
 	"context"
 	"fmt"
+	"sort"
 	"time"
 
 	analyticsCLI "github.com/Caknoooo/go-gin-clean-starter/modules/analytics/cli"
@@ -32,6 +33,7 @@ func Collect(ctx context.Context, analytics analyticsSvc.AnalyticsService, in Co
 	teamFrom := rd.AddDate(0, 0, -6).Format("2006-01-02")
 
 	payload := &DailyReportPayload{
+		HTMLTitle:   DailyReportHTMLTitle,
 		ReportDate:  reportDate,
 		SyncFrom:    in.SyncFrom.Format("2006-01-02"),
 		SyncTo:      in.SyncTo.Format("2006-01-02"),
@@ -102,6 +104,44 @@ func Collect(ctx context.Context, analytics analyticsSvc.AnalyticsService, in Co
 	} else {
 		applyProductDaily(payload, res)
 	}
+
+	// 站点产品（独立表 dws_site_product_daily）
+	if fn, ok := analyticsCLI.Presets["site-product-summary"]; ok {
+		req, err := fn(reportDate, reportDate)
+		if err != nil {
+			return nil, err
+		}
+		res, _, err := analytics.Query(ctx, req)
+		if err != nil {
+			return nil, fmt.Errorf("query site-product-summary: %w", err)
+		}
+		applySiteSummary(payload, res)
+	}
+	if fn, ok := analyticsCLI.Presets["site-product-detail"]; ok {
+		req, err := fn(reportDate, reportDate)
+		if err != nil {
+			return nil, err
+		}
+		res, _, err := analytics.Query(ctx, req)
+		if err != nil {
+			return nil, fmt.Errorf("query site-product-detail: %w", err)
+		}
+		applySiteProductDaily(payload, res)
+	}
+	siteTrendReq := &analyticsdto.QueryRequest{
+		Dataset:    "dws_site_product_daily",
+		Metrics:    []string{"dau", "lead_new_cnt", "lead_recharge_amt"},
+		Dimensions: []string{"date"},
+		DateRange:  &analyticsdto.DateRange{From: trendFrom, To: trendTo},
+		OrderBy:    []analyticsdto.OrderBy{{Field: "date", Desc: false}},
+		Limit:      500,
+	}
+	if res, _, err := analytics.Query(ctx, siteTrendReq); err != nil {
+		return nil, fmt.Errorf("query site-trend: %w", err)
+	} else {
+		applySiteTrend(payload, res)
+	}
+	enrichSiteSummaryWoW(payload)
 
 	payload.Forecast7d = BuildForecast7d(payload.TrendHistory, reportDate)
 	payload.Segments = BuildSegments(payload)
@@ -178,6 +218,51 @@ func applyAnomaly(p *DailyReportPayload, res *analyticsdto.QueryResult) {
 			Direction:   str(row["anomaly_direction"]),
 		})
 	}
+}
+
+func applySiteSummary(p *DailyReportPayload, res *analyticsdto.QueryResult) {
+	for _, row := range res.Rows {
+		p.SiteSummary = SiteSummaryRow{
+			DAU:             num(row["dau"]),
+			LeadNewCnt:      num(row["lead_new_cnt"]),
+			LeadRechargeAmt: num(row["lead_recharge_amt"]),
+		}
+	}
+}
+
+func applySiteProductDaily(p *DailyReportPayload, res *analyticsdto.QueryResult) {
+	for _, row := range res.Rows {
+		p.SiteProductDaily = append(p.SiteProductDaily, SiteProductDayRow{
+			ProductCode:     str(row["product_code"]),
+			ProductName:     str(row["product_name"]),
+			Team:            str(row["team"]),
+			DAU:             num(row["dau"]),
+			LeadNewCnt:      num(row["lead_new_cnt"]),
+			LeadRechargeAmt: num(row["lead_recharge_amt"]),
+		})
+	}
+}
+
+func applySiteTrend(p *DailyReportPayload, res *analyticsdto.QueryResult) {
+	p.SiteTrendHistory = nil
+	for _, row := range res.Rows {
+		p.SiteTrendHistory = append(p.SiteTrendHistory, SiteTrendPoint{
+			Date:            str(row["date"]),
+			DAU:             num(row["dau"]),
+			LeadNewCnt:      num(row["lead_new_cnt"]),
+			LeadRechargeAmt: num(row["lead_recharge_amt"]),
+		})
+	}
+}
+
+func enrichSiteSummaryWoW(p *DailyReportPayload) {
+	if len(p.SiteTrendHistory) < 2 {
+		return
+	}
+	pts := append([]SiteTrendPoint(nil), p.SiteTrendHistory...)
+	sort.Slice(pts, func(i, j int) bool { return pts[i].Date < pts[j].Date })
+	last, prev := pts[len(pts)-1], pts[len(pts)-2]
+	p.SiteSummary.LeadNewWoW = pctChange(last.LeadNewCnt, prev.LeadNewCnt)
 }
 
 func applyTrend(p *DailyReportPayload, res *analyticsdto.QueryResult) {

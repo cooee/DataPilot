@@ -17,6 +17,11 @@ var Presets = map[string]func(dateFrom, dateTo string) (*dto.QueryRequest, error
 	"anomaly-detection":    presetAnomalyDetection,
 	"anomaly-watch":        presetAnomalyWatch,
 	"anomaly-baseline":     presetAnomalyBaseline,
+	// 站点产品（dws_site_product_daily，与 paid/free 独立表）
+	"site-product-summary": presetSiteProductSummary,
+	"site-product-detail":  presetSiteProductDetail,
+	"site-product-trend":   presetSiteProductTrend,
+	"site-team-summary":    presetSiteTeamSummary,
 }
 
 func presetProductTypeCompare(from, to string) (*dto.QueryRequest, error) {
@@ -139,6 +144,67 @@ func presetAnomalyBaseline(_from, _to string) (*dto.QueryRequest, error) {
 		Dimensions: []string{"product_code", "metric"},
 		OrderBy:    []dto.OrderBy{{Field: "product_code", Desc: false}},
 		Limit:      200,
+	}, nil
+}
+
+func presetSiteProductSummary(from, to string) (*dto.QueryRequest, error) {
+	from, to, err := resolveDateRange(from, to, true)
+	if err != nil {
+		return nil, err
+	}
+	return &dto.QueryRequest{
+		Dataset:    "dws_site_product_daily",
+		Metrics:    []string{"dau", "lead_new_cnt", "lead_recharge_amt"},
+		Dimensions: []string{"date"},
+		DateRange:  &dto.DateRange{From: from, To: to},
+		Limit:      10,
+	}, nil
+}
+
+func presetSiteProductDetail(from, to string) (*dto.QueryRequest, error) {
+	from, to, err := resolveDateRange(from, to, true)
+	if err != nil {
+		return nil, err
+	}
+	return &dto.QueryRequest{
+		Dataset: "dws_site_product_daily",
+		Metrics: []string{"dau", "dau_chain_ratio", "lead_new_cnt", "lead_recharge_amt"},
+		Dimensions: []string{
+			"date", "product_code", "product_name", "team", "business_unit",
+		},
+		DateRange: &dto.DateRange{From: from, To: to},
+		OrderBy:   []dto.OrderBy{{Field: "lead_recharge_amt", Desc: true}},
+		Limit:     200,
+	}, nil
+}
+
+func presetSiteProductTrend(from, to string) (*dto.QueryRequest, error) {
+	from, to, err := resolveDateRange(from, to, false)
+	if err != nil {
+		return nil, err
+	}
+	return &dto.QueryRequest{
+		Dataset:    "dws_site_product_daily",
+		Metrics:    []string{"dau", "lead_new_cnt", "lead_recharge_amt"},
+		Dimensions: []string{"date"},
+		DateRange:  &dto.DateRange{From: from, To: to},
+		OrderBy:    []dto.OrderBy{{Field: "date", Desc: false}},
+		Limit:      500,
+	}, nil
+}
+
+func presetSiteTeamSummary(from, to string) (*dto.QueryRequest, error) {
+	from, to, err := resolveDateRange(from, to, true)
+	if err != nil {
+		return nil, err
+	}
+	return &dto.QueryRequest{
+		Dataset:    "dws_site_product_daily",
+		Metrics:    []string{"dau", "lead_new_cnt", "lead_recharge_amt"},
+		Dimensions: []string{"date", "team"},
+		DateRange:  &dto.DateRange{From: from, To: to},
+		OrderBy:    []dto.OrderBy{{Field: "lead_recharge_amt", Desc: true}},
+		Limit:      50,
 	}, nil
 }
 

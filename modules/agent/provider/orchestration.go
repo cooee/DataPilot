@@ -84,6 +84,11 @@ JSON 结构：
 - 可用 dataset：` + strings.Join(datasetNames(), ", ") + `
 - 异常/离群/告警 → intent=anomaly_list, preset=anomaly-detection
 - 付费免费对比 → preset=product-type-compare（dataset=dws_product_daily）
+- 站点/站点产品/导量/日导量 → 使用 site-* preset（dataset=dws_site_product_daily），勿与 paid/free 混用
+  - 站点日汇总 → site-product-summary
+  - 站点产品明细 → site-product-detail
+  - 站点多日走势 → site-product-trend
+  - 站点按小组 → site-team-summary
 - 日期格式 YYYY-MM-DD
 `)
 	if glossary != "" {

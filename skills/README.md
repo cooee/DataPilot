@@ -4,7 +4,9 @@
 
 | Skill | 路径 | 说明 |
 |-------|------|------|
-| 每日运营报表 | `datapilot-daily-ops-report/SKILL.md` | HTML 日报、异常解读、CLI 工作流 |
+| 每日运营报表 | `datapilot-daily-ops-report/SKILL.md` | HTML 日报、异常解读、CLI 工作流（含站点产品查询） |
+
+LLM 数据获取速查（不注入 Skill 时也可读）：`docs/agent/ai-cli-reference.md`。
 
 ## 环境变量
 

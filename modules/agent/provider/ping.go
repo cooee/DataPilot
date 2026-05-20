@@ -107,7 +107,10 @@ func pingOrchestration(ctx context.Context, llm LLMProvider, opts PingOptions) e
 		Question: q,
 		Date:     "2026-05-18",
 		Intent:   "metric_qa",
-		Presets:  []string{"product-type-compare", "anomaly-detection", "product-health"},
+		Presets: []string{
+			"product-type-compare", "anomaly-detection", "product-health",
+			"site-product-summary", "site-product-detail",
+		},
 	}
 	if doc, err := skill.LoadFromEnv(); err != nil {
 		return err

@@ -51,6 +51,9 @@
 # 建表
 make ch-migrate
 
+# 一键（含付费+免费+站点）
+./datapilot --sync:all -from=2026-05-01 -to=2026-05-18
+
 # 仅 ODS
 ./datapilot --sync:ods:site -from=2026-05-01 -to=2026-05-18
 
@@ -59,6 +62,8 @@ make ch-migrate
 ```
 
 `--sync:all` 已包含站点产品（step 3/3）；也可单独用 `--sync:ods:site` / `--sync:site:all`。
+
+**Agent / LLM 如何查站点数据**（preset、禁止混用指标）：[docs/agent/ai-cli-reference.md](../agent/ai-cli-reference.md)
 
 ## 与 paid 指标对比注意
 

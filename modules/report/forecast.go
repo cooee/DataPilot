@@ -21,6 +21,11 @@ var freeForecastMetrics = []forecastMetricDef{
 	{Key: "new_user_total_cnt", Label: "新增用户", Pick: func(p TrendPoint) float64 { return p.NewUsers }},
 }
 
+// siteForecastMetrics 站点产品仅预测日导量新增。
+var siteForecastMetrics = []forecastMetricDef{
+	{Key: "lead_new_cnt", Label: "日导量新增", Pick: func(p TrendPoint) float64 { return p.LeadNewCnt }},
+}
+
 type forecastMetricDef struct {
 	Key   string
 	Label string

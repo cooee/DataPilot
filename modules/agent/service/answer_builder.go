@@ -19,6 +19,12 @@ func buildAnswer(preset string, result *analyticsdto.QueryResult, reportDate str
 		return buildAnomalyAnswer(result, reportDate)
 	case "product-health":
 		return buildHealthAnswer(result)
+	case "site-product-summary", "site-product-trend":
+		return buildSiteSummaryAnswer(result, reportDate, preset)
+	case "site-product-detail":
+		return buildSiteDetailAnswer(result, reportDate)
+	case "site-team-summary":
+		return buildSiteTeamAnswer(result, reportDate)
 	default:
 		return fmt.Sprintf("共 %d 条结果（preset=%s）。", len(result.Rows), preset)
 	}
@@ -54,6 +60,89 @@ func buildAnomalyAnswer(result *analyticsdto.QueryResult, date string) string {
 		b.WriteString(fmt.Sprintf("- %s %s | %s=%s (%s, z=%s)\n", code, name, metric, val, dir, z))
 	}
 	return strings.TrimSpace(b.String())
+}
+
+func buildSiteSummaryAnswer(result *analyticsdto.QueryResult, date, preset string) string {
+	title := fmt.Sprintf("【%s 站点产品汇总】", date)
+	if preset == "site-product-trend" {
+		title = fmt.Sprintf("【%s~%s 站点产品走势】", firstDate(result), lastDate(result))
+	}
+	var b strings.Builder
+	b.WriteString(title + "\n")
+	for _, row := range result.Rows {
+		d := formatDate(row["date"])
+		dau := formatNum(row["dau"])
+		leadNew := formatNum(row["lead_new_cnt"])
+		leadRecharge := formatNum(row["lead_recharge_amt"])
+		if d != "" && d != "-" {
+			b.WriteString(fmt.Sprintf("- %s：日活跃 %s，导量新增 %s，导量充值 %s\n", d, dau, leadNew, leadRecharge))
+		} else {
+			b.WriteString(fmt.Sprintf("- 日活跃 %s，导量新增 %s，导量充值 %s\n", dau, leadNew, leadRecharge))
+		}
+	}
+	return strings.TrimSpace(b.String())
+}
+
+func buildSiteDetailAnswer(result *analyticsdto.QueryResult, date string) string {
+	var b strings.Builder
+	b.WriteString(fmt.Sprintf("【%s 站点产品明细】共 %d 个产品\n", date, len(result.Rows)))
+	for i, row := range result.Rows {
+		if i >= 10 {
+			b.WriteString(fmt.Sprintf("… 另有 %d 个产品\n", len(result.Rows)-10))
+			break
+		}
+		name, _ := row["product_name"].(string)
+		code, _ := row["product_code"].(string)
+		team, _ := row["team"].(string)
+		dau := formatNum(row["dau"])
+		leadNew := formatNum(row["lead_new_cnt"])
+		leadRecharge := formatNum(row["lead_recharge_amt"])
+		b.WriteString(fmt.Sprintf("- %s %s（%s）日活跃 %s，导量新增 %s，导量充值 %s\n",
+			code, name, team, dau, leadNew, leadRecharge))
+	}
+	return strings.TrimSpace(b.String())
+}
+
+func buildSiteTeamAnswer(result *analyticsdto.QueryResult, date string) string {
+	var b strings.Builder
+	b.WriteString(fmt.Sprintf("【%s 站点产品·小组汇总】\n", date))
+	for _, row := range result.Rows {
+		team, _ := row["team"].(string)
+		if team == "" {
+			team = "(未分组)"
+		}
+		dau := formatNum(row["dau"])
+		leadNew := formatNum(row["lead_new_cnt"])
+		leadRecharge := formatNum(row["lead_recharge_amt"])
+		b.WriteString(fmt.Sprintf("- %s：日活跃 %s，导量新增 %s，导量充值 %s\n", team, dau, leadNew, leadRecharge))
+	}
+	return strings.TrimSpace(b.String())
+}
+
+func firstDate(result *analyticsdto.QueryResult) string {
+	if len(result.Rows) == 0 {
+		return "-"
+	}
+	return formatDate(result.Rows[0]["date"])
+}
+
+func lastDate(result *analyticsdto.QueryResult) string {
+	if len(result.Rows) == 0 {
+		return "-"
+	}
+	return formatDate(result.Rows[len(result.Rows)-1]["date"])
+}
+
+func formatDate(v any) string {
+	if v == nil {
+		return "-"
+	}
+	switch d := v.(type) {
+	case string:
+		return d
+	default:
+		return fmt.Sprint(v)
+	}
 }
 
 func buildHealthAnswer(result *analyticsdto.QueryResult) string {

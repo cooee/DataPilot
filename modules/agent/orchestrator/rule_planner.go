@@ -44,7 +44,7 @@ func (p *RulePlanner) Plan(question string, intentHint string, dateOverride stri
 	case IntentMetricQA:
 		return p.planMetricQA(qLower, qOrig, from, to)
 	default:
-		return nil, fmt.Errorf("无法理解问题意图，请尝试：「某日付费免费对比」「某日异常产品」")
+		return nil, fmt.Errorf("无法理解问题意图，请尝试：「某日付费免费对比」「某日站点产品导量」「某日异常产品」")
 	}
 }
 
@@ -74,7 +74,54 @@ func (p *RulePlanner) planAnomaly(from, to string) (*QueryPlan, error) {
 	}, nil
 }
 
+func (p *RulePlanner) isSiteQuestion(qLower, qOrig string) bool {
+	return containsAny(qOrig, "站点", "站点产品", "日活跃数", "日导量") ||
+		containsAny(qLower, "站点", "site产品", "导量", "lead_new", "lead_recharge")
+}
+
+func (p *RulePlanner) planSiteMetricQA(qLower, qOrig, from, to string) (*QueryPlan, error) {
+	preset := "site-product-summary"
+
+	switch {
+	case containsAny(qLower, "小组", "team", "团队"):
+		preset = "site-team-summary"
+	case containsAny(qLower, "趋势", "走势", "trend", "多天", "近7", "近七"):
+		preset = "site-product-trend"
+		t, _ := time.Parse("2006-01-02", to)
+		from = t.AddDate(0, 0, -6).Format("2006-01-02")
+	case containsAny(qLower, "汇总", "概况", "整体", "总计"):
+		preset = "site-product-summary"
+	case containsAny(qLower, "明细", "排行", "top", "列表"):
+		preset = "site-product-detail"
+	}
+
+	fn, ok := analyticsCLI.Presets[preset]
+	if !ok {
+		return nil, fmt.Errorf("preset %s 未注册", preset)
+	}
+	req, err := fn(from, to)
+	if err != nil {
+		return nil, err
+	}
+	if narrowed := p.narrowMetrics(qOrig, req); len(narrowed) > 0 {
+		req.Metrics = narrowed
+	}
+
+	return &QueryPlan{
+		Intent:         IntentMetricQA,
+		Preset:         preset,
+		Query:          req,
+		Interpretation: fmt.Sprintf("查询站点产品 %s~%s，场景=%s", from, to, preset),
+		Confidence:     1,
+		Source:         "rule",
+	}, nil
+}
+
 func (p *RulePlanner) planMetricQA(qLower, qOrig, from, to string) (*QueryPlan, error) {
+	if p.isSiteQuestion(qLower, qOrig) {
+		return p.planSiteMetricQA(qLower, qOrig, from, to)
+	}
+
 	preset := "product-type-compare"
 
 	switch {
@@ -132,7 +179,8 @@ func (p *RulePlanner) mentionsMetric(qLower, qOrig string) bool {
 			return true
 		}
 	}
-	return containsAny(qOrig, "日活", "充值", "留存", "新增") || containsAny(qLower, "dau", "arppu")
+	return containsAny(qOrig, "日活", "充值", "留存", "新增", "导量", "日活跃") ||
+		containsAny(qLower, "dau", "arppu", "lead_new", "lead_recharge")
 }
 
 func (p *RulePlanner) narrowMetrics(qOrig string, req *analyticsdto.QueryRequest) []string {

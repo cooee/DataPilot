@@ -2,6 +2,8 @@
 
 基于 **ADS 视图** + **meta_metric_dict** 的 NL→语义层查询编排。
 
+> **LLM 必读**：[ai-cli-reference.md](ai-cli-reference.md) — 付费 / 免费 / **站点** 三线数据获取、preset 映射、禁止混用的指标与表名。
+
 ## LLM 抽象（多 Provider）
 
 ```go
@@ -124,6 +126,11 @@ go build -o datapilot ./cmd
 
 ./datapilot --agent:ask -q="2026-05-18 付费和免费产品的日活和充值对比" -date=2026-05-18
 
+# 站点产品（规则引擎识别「站点/导量」→ site-* preset → dws_site_product_daily）
+./datapilot --agent:ask -q="2026-05-18 站点产品日活跃和导量充值汇总" -date=2026-05-18
+./datapilot --agent:ask -q="站点产品明细" -date=2026-05-18
+./datapilot --agent:ask -preset=site-product-detail -date=2026-05-18
+
 ./datapilot --agent:anomalies -date=2026-05-18
 ```
 
@@ -133,6 +140,15 @@ go build -o datapilot ./cmd
 # 规则引擎（不调用 Gemini）
 AGENT_LLM_PROVIDER=stub ./datapilot --agent:ask -q="付费免费对比" -date=2026-05-18
 ```
+
+## 产品线速查
+
+| 类型 | 查数表 | Agent / Analytics preset |
+|------|--------|--------------------------|
+| paid / free | `dws_product_daily` | `product-type-compare`, `product-detail`, … |
+| **site 站点** | **`dws_site_product_daily`** | **`site-product-summary`**, `site-product-detail`, `site-product-trend`, `site-team-summary` |
+
+同步：`./datapilot --sync:all` 已包含 gid=553168897 站点 Sheet。详见 [ai-cli-reference.md](ai-cli-reference.md)。
 
 ## 目录结构
 

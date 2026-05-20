@@ -475,7 +475,8 @@ FORMAT PrettyCompact"
 ## 10. Analytics 语义层查询
 
 > 通过结构化参数查询 ClickHouse（非原始 SQL），输出表格或 JSON，便于终端使用和后续 AI 接入。  
-> 若需指标中文名/单位等语义信息，请先执行 `make migrate-seed`（未执行时 schema/query 仍可用，仅无 PG 语义 enrichment）。
+> 若需指标中文名/单位等语义信息，请先执行 `make migrate-seed`（未执行时 schema/query 仍可用，仅无 PG 语义 enrichment）。  
+> **大模型 / Agent 编排速查（含站点产品线）**：[docs/agent/ai-cli-reference.md](agent/ai-cli-reference.md)
 
 ### 查看可用数据集
 
@@ -496,6 +497,10 @@ make analytics-schema
 | `anomaly-detection` | 报告日异常（≥2 天历史用 ±3σ；仅 1 天历史用环比 ≥30%） |
 | `anomaly-watch` | 报告日偏离度 Top 30（含无异常时的排查） |
 | `anomaly-baseline` | 产品 30 日基线上下界 |
+| `site-product-summary` | 站点产品日汇总（DAU / 导量新增 / 导量充值） |
+| `site-product-detail` | 站点产品明细（按导量充值排序） |
+| `site-product-trend` | 站点产品多日走势 |
+| `site-team-summary` | 站点产品按小组汇总 |
 
 ```bash
 # 付费 vs 免费对比（默认昨天）
@@ -514,6 +519,12 @@ make analytics-query ARGS="-preset=product-health -format=json"
 make analytics-query ARGS="-preset=anomaly-detection -from=2026-05-18 -to=2026-05-18"
 make analytics-query ARGS="-preset=anomaly-watch -from=2026-05-18 -to=2026-05-18"
 make analytics-query ARGS="-preset=anomaly-baseline"
+
+# 站点产品（需先 sync:all 或 sync:site:all 写入 dws_site_product_daily）
+make analytics-query ARGS="-preset=site-product-summary -from=2026-05-18 -to=2026-05-18"
+make analytics-query ARGS="-preset=site-product-detail -from=2026-05-18 -to=2026-05-18"
+make analytics-query ARGS="-preset=site-product-trend -from=2026-05-01 -to=2026-05-18"
+make analytics-query ARGS="-preset=site-team-summary -from=2026-05-18 -to=2026-05-18"
 ```
 
 ### 自定义查询
@@ -563,19 +574,29 @@ Cursor Skill：`.cursor/skills/datapilot-daily-ops-report/SKILL.md`。
 
 ## 12. AI Agent（指标问答 / 异常列举）
 
-> 详见 [docs/agent/README.md](agent/README.md)
+> - 架构与 Gemini：[docs/agent/README.md](agent/README.md)  
+> - **LLM / Agent 数据获取速查（含站点产品）**：[docs/agent/ai-cli-reference.md](agent/ai-cli-reference.md)
 
 ```bash
 # 指标问答（规则 NL→语义层）
 make agent-ask ARGS='-q="2026-05-18 付费和免费日活充值对比" -date=2026-05-18'
 
-# 异常产品
+# 站点产品（识别「站点/导量」→ site-* preset → dws_site_product_daily）
+make agent-ask ARGS='-q="2026-05-18 站点产品导量充值汇总" -date=2026-05-18'
+./datapilot --agent:ask -preset=site-product-detail -date=2026-05-18
+
+# 站点：语义层直查（不经过 NL）
+make analytics-query ARGS="-preset=site-product-summary -from=2026-05-18 -to=2026-05-18"
+
+# 异常产品（仅 paid/free，不含站点）
 make agent-anomalies ARGS="-date=2026-05-18"
 
 # HTTP（需 JWT）
 # POST /api/agent/metrics/ask
 # POST /api/agent/anomalies
 ```
+
+**给大模型的要点**：站点与 paid/free **不同表**；站点充值用 `lead_recharge_amt`，勿用 `recharge_total_amt`。完整 preset 表见 [ai-cli-reference.md](agent/ai-cli-reference.md)。
 
 ---
 

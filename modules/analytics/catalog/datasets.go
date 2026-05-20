@@ -47,7 +47,7 @@ var Datasets = map[string]DatasetDef{
 	"dws_product_daily": {
 		Name:        "dws_product_daily",
 		Label:       "产品日汇总",
-		Description: "DWS 层产品粒度日指标，支持按日期/产品/小组/类型聚合",
+		Description: "DWS 层产品粒度日指标（paid/free），支持按日期/产品/小组/类型聚合",
 		Table:       "dws_product_daily",
 		DateColumn:  "date",
 		Dimensions: map[string]DimensionDef{
@@ -59,6 +59,22 @@ var Datasets = map[string]DatasetDef{
 			"business_unit": {Kind: KindString},
 		},
 		Metrics: productDailyMetrics(),
+	},
+	"dws_site_product_daily": {
+		Name:        "dws_site_product_daily",
+		Label:       "站点产品日汇总",
+		Description: "DWS 层站点产品（product_type=site）日指标：日活跃数、日导量新增、日导量充值",
+		Table:       "dws_site_product_daily",
+		DateColumn:  "date",
+		Dimensions: map[string]DimensionDef{
+			"date":          {Kind: KindDate},
+			"product_type":  {Kind: KindString},
+			"product_code":  {Kind: KindString},
+			"product_name":  {Kind: KindString},
+			"team":          {Kind: KindString},
+			"business_unit": {Kind: KindString},
+		},
+		Metrics: siteDailyMetrics(),
 	},
 	"dws_team_daily": {
 		Name:        "dws_team_daily",
@@ -169,6 +185,17 @@ var Datasets = map[string]DatasetDef{
 func GetDataset(name string) (DatasetDef, bool) {
 	ds, ok := Datasets[name]
 	return ds, ok
+}
+
+func siteDailyMetrics() map[string]MetricDef {
+	return map[string]MetricDef{
+		"dau":                       {AggFunc: AggSum, Kind: KindNumber, MetricKey: "dau"},
+		"dau_chain_ratio":           {AggFunc: AggAvg, Kind: KindNumber, MetricKey: "dau_chain_ratio"},
+		"lead_new_cnt":              {AggFunc: AggSum, Kind: KindNumber, MetricKey: "lead_new_cnt"},
+		"lead_new_chain_ratio":      {AggFunc: AggAvg, Kind: KindNumber, MetricKey: "lead_new_chain_ratio"},
+		"lead_recharge_amt":         {AggFunc: AggSum, Kind: KindNumber, MetricKey: "lead_recharge_amt"},
+		"lead_recharge_chain_ratio": {AggFunc: AggAvg, Kind: KindNumber, MetricKey: "lead_recharge_chain_ratio"},
+	}
 }
 
 func productDailyMetrics() map[string]MetricDef {

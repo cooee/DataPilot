@@ -5,11 +5,12 @@ import (
 	"sort"
 )
 
-// BuildSegments 构建付费/免费分栏分析数据。
+// BuildSegments 构建付费/免费/站点分栏分析数据。
 func BuildSegments(p *DailyReportPayload) []SegmentReport {
 	paid := buildOneSegment(p, "paid", "付费产品", "增长与变现：新增、新增付费、充值、ARPPU 为核心观测与预测对象。")
 	free := buildOneSegment(p, "free", "免费产品", "规模与粘性：日活、7日留存、新增规模为观测与预测核心。")
-	return []SegmentReport{paid, free}
+	site := buildSiteSegment(p)
+	return []SegmentReport{paid, free, site}
 }
 
 func buildOneSegment(p *DailyReportPayload, key, label, focus string) SegmentReport {
@@ -30,10 +31,91 @@ func buildOneSegment(p *DailyReportPayload, key, label, focus string) SegmentRep
 }
 
 func forecastDefs(key string) []forecastMetricDef {
-	if key == "paid" {
+	switch key {
+	case "paid":
 		return paidForecastMetrics
+	case "site":
+		return siteForecastMetrics
+	default:
+		return freeForecastMetrics
 	}
-	return freeForecastMetrics
+}
+
+func buildSiteSegment(p *DailyReportPayload) SegmentReport {
+	sum := p.SiteSummary
+	recent := recentSiteTrend(p.SiteTrendHistory, 7)
+	siteHistory := siteTrendAsTrendPoints(p.SiteTrendHistory)
+	forecasts := BuildMetricForecasts(siteHistory, p.ReportDate, "site", siteForecastMetrics)
+	top := topSiteProducts(p.SiteProductDaily, 10)
+	snap := SegmentSnapshot{
+		DAU: sum.DAU, LeadNewCnt: sum.LeadNewCnt, LeadRechargeAmt: sum.LeadRechargeAmt,
+		LeadNewWoW: sum.LeadNewWoW,
+	}
+	notes := buildSiteAnalystNotes(snap, recent, forecasts)
+	risk := "low"
+	if sum.LeadNewWoW < -20 {
+		risk = "medium"
+	}
+
+	return SegmentReport{
+		Key: "site", Label: "站点产品",
+		Focus:        "导量增长：以日导量新增为核心观测；7日预测仅针对日导量新增。辅看日活跃数、日导量充值。",
+		Snapshot:     snap,
+		SiteTrendRecent: recent,
+		SiteTopProducts: top,
+		Forecasts:    forecasts,
+		AnalystNotes: notes,
+		RiskLevel:    risk,
+	}
+}
+
+func recentSiteTrend(history []SiteTrendPoint, n int) []SiteTrendPoint {
+	pts := append([]SiteTrendPoint(nil), history...)
+	sort.Slice(pts, func(i, j int) bool { return pts[i].Date < pts[j].Date })
+	if len(pts) > n {
+		pts = pts[len(pts)-n:]
+	}
+	return pts
+}
+
+func siteTrendAsTrendPoints(history []SiteTrendPoint) []TrendPoint {
+	out := make([]TrendPoint, 0, len(history))
+	for _, h := range history {
+		out = append(out, TrendPoint{
+			Date: h.Date, ProductType: "site",
+			DAU: h.DAU, LeadNewCnt: h.LeadNewCnt, LeadRechargeAmt: h.LeadRechargeAmt,
+		})
+	}
+	return out
+}
+
+func topSiteProducts(rows []SiteProductDayRow, n int) []SiteProductDayRow {
+	filtered := append([]SiteProductDayRow(nil), rows...)
+	sort.Slice(filtered, func(i, j int) bool {
+		return filtered[i].LeadNewCnt > filtered[j].LeadNewCnt
+	})
+	if len(filtered) > n {
+		filtered = filtered[:n]
+	}
+	return filtered
+}
+
+func buildSiteAnalystNotes(snap SegmentSnapshot, recent []SiteTrendPoint, fc []MetricForecast) []string {
+	notes := []string{
+		fmt.Sprintf("站点盘快照：日活跃 %s，日导量新增 %s，日导量充值 %s；导量新增环比 %s。",
+			fmtFloat(snap.DAU, 0), fmtFloat(snap.LeadNewCnt, 0), fmtFloat(snap.LeadRechargeAmt, 2), fmtPct(snap.LeadNewWoW)),
+	}
+	if v, ok := lastForecastByMetric(fc)["lead_new_cnt"]; ok {
+		notes = append(notes, "日导量新增预测（7日后）："+fmtFloat(v, 0)+"，关注导量渠道与落地页转化。")
+	}
+	if len(recent) >= 2 {
+		first, last := recent[0], recent[len(recent)-1]
+		chg := pctChange(last.LeadNewCnt, first.LeadNewCnt)
+		notes = append(notes, "近 "+itoa(len(recent))+" 日导量新增趋势："+trendWord(chg)+"（区间变化 "+fmtPct(chg)+"）。")
+	}
+	notes = append(notes, "站点产品线暂无 ±3σ 异常 ADS，以导量新增规模与预测区间为主。")
+	notes = append(notes, forecastDiagnosticsNote(fc)...)
+	return notes
 }
 
 func snapshotFor(p *DailyReportPayload, productType string) SegmentSnapshot {

@@ -63,7 +63,7 @@ func runAnalyticsQuery(injector *do.Injector) {
 
 func parseAnalyticsFlags(cmd string) analyticsArgs {
 	fs := flag.NewFlagSet(cmd, flag.ExitOnError)
-	preset := fs.String("preset", "", "内置场景: product-type-compare | product-detail | product-trend | team-performance | product-health")
+	preset := fs.String("preset", "", "内置场景: product-type-compare | product-detail | site-product-detail | site-product-summary | ...（见 docs/cli.md）")
 	dataset := fs.String("dataset", "", "数据集名称")
 	metrics := fs.String("metrics", "", "指标，逗号分隔")
 	dims := fs.String("dimensions", "", "维度，逗号分隔")

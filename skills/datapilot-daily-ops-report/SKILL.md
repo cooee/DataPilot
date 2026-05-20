@@ -38,7 +38,9 @@ make daily-report-html-llm ARGS="-skip-sync -date=2026-05-18"
 ```
 
 - 流程：ClickHouse 拉数 → 注入本 Skill → **Gemini 直接输出完整 HTML**
-- 页内须含：**付费/免费 Tab 切换**、**底栏/页眉 AI 生成标识**（Provider / Model / Skill / 时间）
+- 页内须含：**付费/免费/站点 三 Tab 切换**、**底栏/页眉 AI 生成标识**（Provider / Model / Skill / 时间）
+- **主标题固定**：`DataPilot 每日运营分析报告`（`<title>` 与 `<h1>` 一致，禁止 LLM 自造「学术/排班」等变体）
+- 页眉副标题保持：`📅 报告日:`、`⏰ 生成时间:`、`🟢 数据质量 (DQ):`
 - 默认输出：`reports/daily-YYYY-MM-DD-llm.html`
 
 **模式 B — Go 模板渲染（快速、无 LLM）**
@@ -59,6 +61,8 @@ make daily-report ARGS="-date=YYYY-MM-DD"
 
 ### 4. 单条语义层查询（排查 / 补数）
 
+**付费 / 免费**（表 `dws_product_daily`）：
+
 ```bash
 ./datapilot --analytics:schema
 ./datapilot --analytics:query -preset=product-type-compare -from=DATE -to=DATE
@@ -69,31 +73,58 @@ make daily-report ARGS="-date=YYYY-MM-DD"
 ./datapilot --analytics:query -preset=anomaly-watch -from=DATE -to=DATE
 ```
 
+**站点产品**（表 `dws_site_product_daily`，gid=553168897，**独立管线**）：
+
+```bash
+# 须先 sync（--sync:all 已含站点 step 3/3）
+./datapilot --analytics:query -preset=site-product-summary -from=DATE -to=DATE
+./datapilot --analytics:query -preset=site-product-detail -from=DATE -to=DATE
+./datapilot --analytics:query -preset=site-product-trend -from=DATE_FROM -to=DATE_TO
+./datapilot --analytics:query -preset=site-team-summary -from=DATE -to=DATE
+```
+
+站点指标：`dau`（日活跃数）、`lead_new_cnt`（日导量新增）、`lead_recharge_amt`（日导量充值）。  
+**禁止**对站点使用 `recharge_total_amt`、`product-type-compare`、`anomaly-detection`。  
+详见 `docs/agent/ai-cli-reference.md`。
+
 ### 5. AI 问答（自然语言，可选）
 
 ```bash
 export AGENT_LLM_PROVIDER=gemini
 ./datapilot --agent:ask -q="2026-05-18 付费和免费产品的日活和充值对比" -date=2026-05-18
+./datapilot --agent:ask -q="2026-05-18 站点产品日活跃和导量充值汇总" -date=2026-05-18
+./datapilot --agent:ask -preset=site-product-detail -date=2026-05-18
 ./datapilot --agent:anomalies -date=2026-05-18
 ./datapilot --agent:llm-ping -format=json
 ```
 
-Gemini 编排时会注入本 Skill（`skills/datapilot-daily-ops-report/SKILL.md`），响应 JSON 含 `skill_loaded` / `skill_sha256` 可验收。
+NL 含「站点 / 导量 / 日导量」→ 规则/LLM 应选 `site-*` preset，dataset=`dws_site_product_daily`。
+
+Gemini 编排时会注入本 Skill，响应 JSON 含 `skill_loaded` / `skill_sha256` 可验收。
 
 ## HTML 报表结构（Tab 分轨 · 数据分析师视图）
 
-报表通过 **页签** 切换「付费产品 / 免费产品」，两者指标与预测模型不同：
+报表通过 **页签** 切换「付费产品 / 免费产品 / 站点产品」：
 
-| 页签 | 核心关注指标 | 7 日预测模型（线性回归） |
-|------|-------------|------------------------|
+| 页签 | 核心关注指标 | 7 日预测（线性回归） |
+|------|-------------|---------------------|
 | **付费** | 新增用户、新增付费、充值、ARPPU、日活 | 新增、新增付费、充值、ARPPU |
 | **免费** | 日活、7 日留存、新增 | 日活、7 日留存、新增 |
+| **站点** | **日导量新增**（★核心）、日活跃数、日导量充值 | **仅日导量新增** `lead_new_cnt` |
 
-每个页签包含：**报告日快照（含环比）**、**分析师结论**、**分指标预测表**、**近 7 日趋势**、**异常列表**、**Top 产品**（付费按充值 / 免费按日活）。
+**主标题（硬性）**：`DataPilot 每日运营分析报告` — JSON 字段 `html_title`，禁止改写。
 
-全局顶部：DQ 状态 + 跨产品线摘要。
+**页眉副标题（保持）**：
+- `📅 报告日: YYYY-MM-DD`
+- `⏰ 生成时间: YYYY-MM-DD HH:MM:SS`
+- `🟢 数据质量 (DQ): PASS`（或需关注文案）
 
-数据来源：`product-type-compare`、`dws_product_daily` 扩展趋势/明细、`anomaly-detection`（按 `product_type` 过滤）。
+每个页签包含：**报告日快照**、**分析师结论**、**预测表**、**近 7 日趋势**、**Top 产品**。  
+付费/免费另有 **异常列表**；**站点无 ±3σ 异常**（勿编造）。
+
+数据来源：
+- paid/free：`dws_product_daily`、`anomaly-detection`
+- site：`dws_site_product_daily`（`site-product-summary` / `detail` / `trend`）
 
 ## 异常解读规则（写给运营）
 
@@ -125,19 +156,25 @@ JSON 字段（LLM/模板必须原样使用）：`Segments[].Forecasts[]` 含 `Va
 ## 同步与 ETL CLI（日报依赖）
 
 ```bash
-./datapilot --sync:ods -product-type=paid -from=DATE -to=DATE
-./datapilot --sync:ods -product-type=free -from=DATE -to=DATE -gid=469519483
-./datapilot --sync:all -from=DATE -to=DATE
 ./datapilot --ch:migrate
+# 一键：付费(gid=0) + 免费(gid=469519483) + 站点(gid=553168897) + 全链路 ETL
+./datapilot --sync:all -from=DATE -to=DATE
+# 仅站点
+./datapilot --sync:site:all -from=DATE -to=DATE
+./datapilot --sync:ods:site -from=DATE -to=DATE
+# 单 sheet
+./datapilot --sync:ods -gid=0 -from=DATE -to=DATE
+./datapilot --sync:ods -gid=469519483 -from=DATE -to=DATE
 ```
 
 ## 关键数据集（白名单）
 
-- `dws_product_daily` — 产品日宽表
-- `dws_team_daily` — 小组日表
+- `dws_product_daily` — 付费/免费产品日宽表（`product_type` = paid | free）
+- **`dws_site_product_daily`** — **站点产品日表**（`product_type` = site）
+- `dws_team_daily` — 小组日表（paid/free）
 - `ads_team_performance_daily` — 小组表现 ADS
-- `ads_product_health_overview` — 健康度
-- `ads_product_anomaly_daily` — 日异常
+- `ads_product_health_overview` — 健康度（paid/free）
+- `ads_product_anomaly_daily` — 日异常（paid/free，不含站点）
 - `ads_anomaly_baseline` — 基线区间
 
 HTTP API（需 JWT）：`GET /api/analytics/schema`，`POST /api/analytics/query`。
@@ -159,5 +196,7 @@ HTTP API（需 JWT）：`GET /api/analytics/schema`，`POST /api/analytics/query
 ## 参考文档
 
 - `docs/cli.md` — 全部 CLI 参数
+- **`docs/agent/ai-cli-reference.md`** — **LLM 用：三线数据获取与 preset 映射（含站点）**
+- `docs/schema/site-product-sheet.md` — 站点 Sheet 列定义
 - `docs/sop/daily-ops-report.md` — 每日运营 SOP
 - `docs/agent/README.md` — Agent / Gemini / Skill 注入配置

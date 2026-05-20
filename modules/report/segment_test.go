@@ -15,10 +15,15 @@ func TestBuildSegments_paidForecastMetrics(t *testing.T) {
 			{Date: "2026-05-17", ProductType: "free", DAU: 48000, RetentionD7: 0.34, NewUsers: 4800},
 			{Date: "2026-05-18", ProductType: "free", DAU: 50000, RetentionD7: 0.35, NewUsers: 5000},
 		},
+		SiteSummary: SiteSummaryRow{DAU: 8000, LeadNewCnt: 50, LeadRechargeAmt: 1200},
+		SiteTrendHistory: []SiteTrendPoint{
+			{Date: "2026-05-17", DAU: 7500, LeadNewCnt: 45, LeadRechargeAmt: 1000},
+			{Date: "2026-05-18", DAU: 8000, LeadNewCnt: 50, LeadRechargeAmt: 1200},
+		},
 	}
 	segs := BuildSegments(p)
-	if len(segs) != 2 {
-		t.Fatalf("expected 2 segments, got %d", len(segs))
+	if len(segs) != 3 {
+		t.Fatalf("expected 3 segments (paid/free/site), got %d", len(segs))
 	}
 	if segs[0].Key != "paid" || len(segs[0].Forecasts) == 0 {
 		t.Fatalf("paid forecasts missing: %+v", segs[0])

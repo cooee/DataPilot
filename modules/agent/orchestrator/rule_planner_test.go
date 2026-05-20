@@ -30,3 +30,25 @@ func TestRulePlanner_HealthPreset(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "product-health", plan.Preset)
 }
+
+func TestRulePlanner_SiteProductSummary(t *testing.T) {
+	p := NewRulePlanner(nil)
+	plan, err := p.Plan("2026-05-18 站点产品日活跃和导量充值汇总", IntentMetricQA, "")
+	require.NoError(t, err)
+	assert.Equal(t, "site-product-summary", plan.Preset)
+	assert.Equal(t, "dws_site_product_daily", plan.Query.Dataset)
+}
+
+func TestRulePlanner_SiteProductDetail(t *testing.T) {
+	p := NewRulePlanner(nil)
+	plan, err := p.Plan("站点产品明细排行", IntentMetricQA, "2026-05-18")
+	require.NoError(t, err)
+	assert.Equal(t, "site-product-detail", plan.Preset)
+}
+
+func TestRulePlanner_SiteNotConfusedWithPaidFree(t *testing.T) {
+	p := NewRulePlanner(nil)
+	plan, err := p.Plan("2026-05-18 付费和免费对比", IntentMetricQA, "")
+	require.NoError(t, err)
+	assert.Equal(t, "product-type-compare", plan.Preset)
+}

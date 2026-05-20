@@ -13,9 +13,9 @@ const dailyHTMLTmpl = `<!DOCTYPE html>
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>DataPilot 运营分析日报 · {{.ReportDate}}</title>
+<title>{{.HTMLTitle}}</title>
 <style>
-:root{--bg:#0b0f14;--card:#151c27;--border:#2a3548;--text:#e8edf4;--muted:#8b9cb3;--accent:#3b82f6;--paid:#10b981;--free:#8b5cf6;--warn:#f59e0b;--danger:#ef4444;--ok:#22c55e}
+:root{--bg:#0b0f14;--card:#151c27;--border:#2a3548;--text:#e8edf4;--muted:#8b9cb3;--accent:#3b82f6;--paid:#10b981;--free:#8b5cf6;--site:#f59e0b;--warn:#f59e0b;--danger:#ef4444;--ok:#22c55e}
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:"PingFang SC","SF Pro Display",system-ui,sans-serif;background:var(--bg);color:var(--text);line-height:1.55;padding:1.5rem}
 .wrap{max-width:1280px;margin:0 auto}
@@ -25,10 +25,11 @@ h1{font-size:1.6rem;font-weight:700}
 .badge{display:inline-block;padding:.3rem .7rem;border-radius:999px;font-size:.75rem;font-weight:600}
 .badge-ok{background:rgba(34,197,94,.15);color:var(--ok)}
 .badge-warn{background:rgba(245,158,11,.15);color:var(--warn)}
-.tabs{display:flex;gap:.5rem;margin-bottom:1.25rem}
-.tab{flex:1;max-width:220px;padding:.85rem 1rem;border:1px solid var(--border);border-radius:10px;background:var(--card);color:var(--muted);cursor:pointer;font-weight:600;font-size:.95rem;transition:.15s}
+.tabs{display:flex;gap:.5rem;margin-bottom:1.25rem;flex-wrap:wrap}
+.tab{flex:1;min-width:140px;max-width:220px;padding:.85rem 1rem;border:1px solid var(--border);border-radius:10px;background:var(--card);color:var(--muted);cursor:pointer;font-weight:600;font-size:.95rem;transition:.15s}
 .tab.active-paid{border-color:var(--paid);color:var(--paid);box-shadow:0 0 0 1px var(--paid)}
 .tab.active-free{border-color:var(--free);color:var(--free);box-shadow:0 0 0 1px var(--free)}
+.tab.active-site{border-color:var(--site);color:var(--site);box-shadow:0 0 0 1px var(--site)}
 .panel{display:none}
 .panel.active{display:block}
 .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:1.15rem 1.25rem;margin-bottom:1rem}
@@ -42,7 +43,6 @@ h1{font-size:1.6rem;font-weight:700}
 .kpi{background:rgba(0,0,0,.2);border-radius:8px;padding:.75rem}
 .kpi .v{font-size:1.35rem;font-weight:700}
 .kpi .l{font-size:.72rem;color:var(--muted);margin-top:.2rem}
-.kpi .d{font-size:.7rem;margin-top:.25rem}
 .up{color:var(--ok)}.down{color:var(--danger)}
 .notes li{margin:.5rem 0 .5rem 1rem;font-size:.88rem}
 table{width:100%;border-collapse:collapse;font-size:.82rem}
@@ -59,13 +59,13 @@ footer{margin-top:2rem;text-align:center;color:var(--muted);font-size:.72rem}
 <div class="wrap">
 <header>
   <div>
-    <h1>DataPilot 运营分析日报</h1>
-    <p class="sub">报告日 {{.ReportDate}} · 同步 {{.SyncFrom}} ~ {{.SyncTo}} · {{.GeneratedAt}}</p>
-    <p class="sub">数据分析师视图 · 付费/免费分轨预测</p>
+    <h1>{{.HTMLTitle}}</h1>
+    <p class="sub">📅 报告日: {{.ReportDate}}</p>
+    <p class="sub">⏰ 生成时间: {{.GeneratedAt}}</p>
+    <p class="sub">数据同步: {{.SyncFrom}} ~ {{.SyncTo}}</p>
   </div>
   <div>
-    {{if .DQOK}}<span class="badge badge-ok">DQ 通过</span>{{else}}<span class="badge badge-warn">DQ 需关注</span>{{end}}
-    <p class="sub" style="margin-top:.4rem">{{.DQSummary}}</p>
+    {{if .DQOK}}<span class="badge badge-ok">🟢 数据质量 (DQ): PASS</span>{{else}}<span class="badge badge-warn">🟠 数据质量 (DQ): {{.DQSummary}}</span>{{end}}
   </div>
 </header>
 
@@ -76,6 +76,7 @@ footer{margin-top:2rem;text-align:center;color:var(--muted);font-size:.72rem}
 <div class="tabs">
   <button type="button" class="tab active-paid" id="tab-paid" onclick="switchTab('paid')">💰 付费产品</button>
   <button type="button" class="tab" id="tab-free" onclick="switchTab('free')">📱 免费产品</button>
+  <button type="button" class="tab" id="tab-site" onclick="switchTab('site')">🌐 站点产品</button>
 </div>
 
 {{range $seg := .Segments}}
@@ -83,9 +84,7 @@ footer{margin-top:2rem;text-align:center;color:var(--muted);font-size:.72rem}
   <p class="focus">{{.Focus}}</p>
 
   <div class="card">
-    <h2>{{.Label}} · 报告日快照
-      <span class="risk risk-{{.RiskLevel}}">{{riskLabel .RiskLevel}}</span>
-    </h2>
+    <h2>{{.Label}} · 报告日快照 <span class="risk risk-{{.RiskLevel}}">{{riskLabel .RiskLevel}}</span></h2>
     <div class="kpi-grid">
       {{if eq .Key "paid"}}
       <div class="kpi"><div class="v">{{fmt0 .Snapshot.NewUsers}}</div><div class="l">新增用户</div></div>
@@ -93,6 +92,10 @@ footer{margin-top:2rem;text-align:center;color:var(--muted);font-size:.72rem}
       <div class="kpi"><div class="v">{{fmt2 .Snapshot.Recharge}}</div><div class="l">充值金额</div><div class="l {{wowClass .Snapshot.RechargeWoW}}">环比 {{fmtPct .Snapshot.RechargeWoW}}</div></div>
       <div class="kpi"><div class="v">{{fmt2 .Snapshot.ARPPU}}</div><div class="l">ARPPU</div></div>
       <div class="kpi"><div class="v">{{fmt0 .Snapshot.DAU}}</div><div class="l">日活 DAU</div></div>
+      {{else if eq .Key "site"}}
+      <div class="kpi"><div class="v">{{fmt0 .Snapshot.LeadNewCnt}}</div><div class="l">日导量新增 ★</div><div class="l {{wowClass .Snapshot.LeadNewWoW}}">环比 {{fmtPct .Snapshot.LeadNewWoW}}</div></div>
+      <div class="kpi"><div class="v">{{fmt0 .Snapshot.DAU}}</div><div class="l">日活跃数</div></div>
+      <div class="kpi"><div class="v">{{fmt2 .Snapshot.LeadRechargeAmt}}</div><div class="l">日导量充值</div></div>
       {{else}}
       <div class="kpi"><div class="v">{{fmt0 .Snapshot.DAU}}</div><div class="l">日活 DAU</div><div class="l {{wowClass .Snapshot.DAUWoW}}">环比 {{fmtPct .Snapshot.DAUWoW}}</div></div>
       <div class="kpi"><div class="v">{{fmtPctRatio .Snapshot.RetentionD7}}</div><div class="l">7日留存</div><div class="l {{wowClass .Snapshot.RetainWoW}}">环比 {{fmtPct .Snapshot.RetainWoW}}</div></div>
@@ -118,7 +121,7 @@ footer{margin-top:2rem;text-align:center;color:var(--muted);font-size:.72rem}
       </table>
     </div>
     {{end}}
-    <p class="sub" style="margin-top:.5rem;font-size:.75rem">模型：近14日线性回归；样本&lt;2天为 carry_forward。付费侧重变现指标，免费侧重规模与留存。</p>
+    <p class="sub" style="margin-top:.5rem;font-size:.75rem">{{if eq .Key "site"}}站点仅预测日导量新增。{{else}}付费侧重变现；免费侧重规模与留存。{{end}} 样本&lt;2天为 carry_forward。</p>
   </div>
 
   <div class="card">
@@ -127,10 +130,13 @@ footer{margin-top:2rem;text-align:center;color:var(--muted);font-size:.72rem}
       <thead><tr>
         <th>日期</th>
         {{if eq .Key "paid"}}<th>新增</th><th>新增付费</th><th>充值</th><th>ARPPU</th>
+        {{else if eq .Key "site"}}<th>日导量新增</th><th>日活跃</th><th>日导量充值</th>
         {{else}}<th>DAU</th><th>7日留存</th><th>新增</th>{{end}}
       </tr></thead>
       <tbody>
-      {{range .TrendRecent}}
+      {{if eq .Key "site"}}{{range .SiteTrendRecent}}
+      <tr><td>{{.Date}}</td><td>{{fmt0 .LeadNewCnt}}</td><td>{{fmt0 .DAU}}</td><td>{{fmt2 .LeadRechargeAmt}}</td></tr>
+      {{end}}{{else}}{{range .TrendRecent}}
       <tr>
         <td>{{.Date}}</td>
         {{if eq $seg.Key "paid"}}
@@ -139,11 +145,12 @@ footer{margin-top:2rem;text-align:center;color:var(--muted);font-size:.72rem}
         <td>{{fmt0 .DAU}}</td><td>{{fmtPctRatio .RetentionD7}}</td><td>{{fmt0 .NewUsers}}</td>
         {{end}}
       </tr>
-      {{end}}
+      {{end}}{{end}}
       </tbody>
     </table>
   </div>
 
+  {{if ne .Key "site"}}
   <div class="card">
     <h2>指标异常</h2>
     {{if .Anomalies}}
@@ -157,15 +164,20 @@ footer{margin-top:2rem;text-align:center;color:var(--muted);font-size:.72rem}
     </table>
     {{else}}<p class="sub">无异常记录</p>{{end}}
   </div>
+  {{end}}
 
   <div class="card">
-    <h2>Top 产品（{{if eq .Key "paid"}}按充值{{else}}按日活{{end}}）</h2>
+    <h2>Top 产品（{{if eq .Key "paid"}}按充值{{else if eq .Key "site"}}按日导量新增{{else}}按日活{{end}}）</h2>
     <table>
       <thead><tr><th>产品</th><th>小组</th>
         {{if eq .Key "paid"}}<th>充值</th><th>新增付费</th><th>ARPPU</th>
+        {{else if eq .Key "site"}}<th>日导量新增</th><th>日活跃</th><th>日导量充值</th>
         {{else}}<th>DAU</th><th>7日留存</th><th>新增</th>{{end}}
       </tr></thead>
-      <tbody>{{range .TopProducts}}
+      <tbody>
+      {{if eq .Key "site"}}{{range .SiteTopProducts}}
+      <tr><td>{{.ProductName}}</td><td>{{.Team}}</td><td>{{fmt0 .LeadNewCnt}}</td><td>{{fmt0 .DAU}}</td><td>{{fmt2 .LeadRechargeAmt}}</td></tr>
+      {{end}}{{else}}{{range .TopProducts}}
       <tr>
         <td>{{.ProductName}}</td><td>{{.Team}}</td>
         {{if eq $seg.Key "paid"}}
@@ -173,22 +185,25 @@ footer{margin-top:2rem;text-align:center;color:var(--muted);font-size:.72rem}
         {{else}}
         <td>{{fmt0 .DAU}}</td><td>{{fmtPctRatio .RetentionD7}}</td><td>{{fmt0 .NewUsers}}</td>
         {{end}}
-      </tr>{{end}}</tbody>
+      </tr>{{end}}{{end}}
+      </tbody>
     </table>
   </div>
 </div>
 {{end}}
 
-<footer>DataPilot · datapilot --report:daily-html · 付费/免费分轨分析</footer>
+<footer>DataPilot · datapilot --report:daily-html · 付费/免费/站点分轨</footer>
 </div>
 <script>
 function switchTab(key){
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
   document.getElementById('panel-'+key).classList.add('active');
-  const paid=document.getElementById('tab-paid'), free=document.getElementById('tab-free');
-  paid.classList.remove('active-paid','active-free');
-  free.classList.remove('active-paid','active-free');
-  if(key==='paid'){paid.classList.add('active-paid');}else{free.classList.add('active-free');}
+  ['paid','free','site'].forEach(k=>{
+    const el=document.getElementById('tab-'+k);
+    if(el){el.classList.remove('active-paid','active-free','active-site');}
+  });
+  const t=document.getElementById('tab-'+key);
+  if(t){t.classList.add('active-'+key);}
 }
 </script>
 </body>
@@ -208,14 +223,17 @@ type forecastRowView struct {
 
 // WriteDailyHTML 将报表写入 path。
 func WriteDailyHTML(path string, p *DailyReportPayload) error {
+	if p.HTMLTitle == "" {
+		p.HTMLTitle = DailyReportHTMLTitle
+	}
 	tmpl, err := template.New("daily").Funcs(template.FuncMap{
-		"eq":            func(a, b string) bool { return a == b },
-		"fmt0":          func(v float64) string { return fmt.Sprintf("%.0f", v) },
-		"fmt2":          func(v float64) string { return fmt.Sprintf("%.2f", v) },
-		"fmtPct":        func(v float64) string { return fmt.Sprintf("%+.1f%%", v) },
-		"fmtPctRatio":   func(v float64) string { return fmt.Sprintf("%.1f%%", v*100) },
-		"wowClass":      wowClass,
-		"riskLabel":     riskLabel,
+		"eq":             func(a, b string) bool { return a == b },
+		"fmt0":           func(v float64) string { return fmt.Sprintf("%.0f", v) },
+		"fmt2":           func(v float64) string { return fmt.Sprintf("%.2f", v) },
+		"fmtPct":         func(v float64) string { return fmt.Sprintf("%+.1f%%", v) },
+		"fmtPctRatio":    func(v float64) string { return fmt.Sprintf("%.1f%%", v*100) },
+		"wowClass":       wowClass,
+		"riskLabel":      riskLabel,
 		"forecastGroups": forecastGroupsForTemplate,
 	}).Parse(dailyHTMLTmpl)
 	if err != nil {
@@ -274,13 +292,13 @@ func forecastGroupsForTemplate(fc []MetricForecast) []forecastGroupView {
 		g := forecastGroupView{Label: rows[0].MetricLabel, Method: rows[0].MethodDetail}
 		for _, r := range rows {
 			valStr := fmt.Sprintf("%.2f", r.Value)
-			if r.MetricKey == "dau" || r.MetricKey == "new_user_total_cnt" || r.MetricKey == "new_paying_user_cnt" {
+			if r.MetricKey == "dau" || r.MetricKey == "new_user_total_cnt" || r.MetricKey == "new_paying_user_cnt" || r.MetricKey == "lead_new_cnt" {
 				valStr = fmt.Sprintf("%.0f", r.Value)
 			}
 			if r.MetricKey == "retention_d7_ratio" {
 				valStr = fmt.Sprintf("%.1f%%", r.Value*100)
 			}
-			if r.MetricKey == "recharge_total_amt" {
+			if r.MetricKey == "recharge_total_amt" || r.MetricKey == "lead_recharge_amt" {
 				valStr = "¥" + valStr
 			}
 			g.Rows = append(g.Rows, forecastRowView{Date: r.Date, ValueStr: valStr, MethodDetail: r.MethodDetail})
