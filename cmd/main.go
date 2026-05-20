@@ -75,6 +75,9 @@ func main() {
 		case "--analytics:query":
 			runAnalyticsQuery(injector)
 			return
+		case "--report:daily":
+			runDailyReport(injector)
+			return
 		}
 	}
 

@@ -15,11 +15,11 @@ dep:
 run: 
 	go run cmd/main.go
 
-build: 
-	go build -o main cmd/main.go
+build:
+	go build -o datapilot ./cmd
 
 run-build: build
-	./main
+	./datapilot
 
 test:
 	go test -v ./tests
@@ -119,6 +119,12 @@ analytics-schema:
 
 analytics-query:
 	go run ./cmd --analytics:query $(ARGS)
+
+# 每日运营日报：付费+免费 ODS → ETL → DQ → Analytics 三段 preset
+# 默认报告日=昨天；指定区间：ARGS="-from=2026-05-12 -to=2026-05-18 -date=2026-05-18"
+# 仅刷新查询：ARGS="-skip-sync -date=2026-05-18"
+daily-report:
+	go run ./cmd --report:daily $(ARGS)
 
 migrate-seed: 
 	go run cmd/main.go --migrate:run --seed

@@ -17,6 +17,7 @@
 8. [数据清除 / 重置](#8-数据清除--重置)
 9. [常用场景速查](#9-常用场景速查)
 10. [Analytics 语义层查询](#10-analytics-语义层查询)
+11. [每日运营日报（一键 SOP）](#11-每日运营日报一键-sop)
 
 ---
 
@@ -494,6 +495,25 @@ make analytics-query ARGS='-json-file=query.json -format=json'
 ```
 
 **filter 格式：** `field:op:value`，多条用 `|` 分隔。支持 `eq` `in` `between` 等。
+
+---
+
+## 11. 每日运营日报（一键 SOP）
+
+> 完整说明见 [docs/sop/daily-ops-report.md](sop/daily-ops-report.md)
+
+```bash
+# 编译
+go build -o datapilot ./cmd
+
+# 一键：付费+免费 ODS → ETL → DQ → Analytics 三段 preset
+make daily-report
+make daily-report ARGS="-date=2026-05-18"
+make daily-report ARGS="-from=2026-05-12 -to=2026-05-18 -date=2026-05-18 -format=json"
+
+# 仅刷新查询（跳过同步）
+make daily-report ARGS="-skip-sync -date=2026-05-18"
+```
 
 ---
 
